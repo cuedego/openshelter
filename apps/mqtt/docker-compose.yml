@@ -1,0 +1,13 @@
+services:
+  mqtt:
+    build:
+      context: .
+    image: openshelter/mqtt:local
+    container_name: openshelter-mqtt
+    environment:
+      MQTT_USERNAME: ${MQTT_USERNAME:-openshelter}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-openshelter-dev-password}
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    restart: unless-stopped

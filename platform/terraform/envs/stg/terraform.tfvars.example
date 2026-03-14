@@ -1,6 +1,8 @@
-region               = "us-east-1"
-environment          = "stg"
-vpc_cidr             = "10.30.0.0/16"
-eks_cluster_role_arn = "arn:aws:iam::123456789012:role/openshelter-eks-control-plane"
-eks_subnet_ids       = ["subnet-cccccccc", "subnet-dddddddd"]
-rds_password         = "REPLACE_ME_FROM_SECRETS_MANAGER"
+region      = "eu-central-1"
+environment = "stg"
+vpc_cidr    = "10.255.251.0/24"
+
+# Sensitive — inject via TF_VAR_* env vars or a Secrets Manager data source at runtime
+rds_password         = "REPLACE_ME"
+zabbix_admin_password = "REPLACE_ME"
+mqtt_password        = "REPLACE_ME"

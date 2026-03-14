@@ -1,8 +1,48 @@
 global:
   environment: prod
 
+serviceAccount:
+  zabbix:
+    annotations:
+      eks.amazonaws.com/role-arn: "REPLACE_ME_ZABBIX_IRSA_ROLE_ARN"
+  mqtt:
+    annotations:
+      eks.amazonaws.com/role-arn: "REPLACE_ME_MQTT_IRSA_ROLE_ARN"
+
 zabbix:
   enabled: true
+  replicaCount: 2
+  image:
+    repository: "REPLACE_ME.dkr.ecr.us-east-1.amazonaws.com/openshelter/zabbix"
+    tag: "0.1.0"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 1Gi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+  db:
+    host: "REPLACE_ME.rds.amazonaws.com"
+  secrets:
+    rdsPassword:
+      remoteRef: "openshelter-prod/rds/password"
+    adminPassword:
+      remoteRef: "openshelter-prod/zabbix/admin-password"
 
 mqtt:
   enabled: true
+  replicaCount: 2
+  image:
+    repository: "REPLACE_ME.dkr.ecr.us-east-1.amazonaws.com/openshelter/mqtt"
+    tag: "0.1.0"
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+  secrets:
+    password:
+      remoteRef: "openshelter-prod/mqtt/password"

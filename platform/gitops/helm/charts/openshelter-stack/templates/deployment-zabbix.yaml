@@ -1,0 +1,124 @@
+{{- if .Values.zabbix.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-zabbix-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openshelter.labels" . | nindent 4 }}
+    {{- include "openshelter.zabbix.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  replicas: {{ .Values.zabbix.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "openshelter.zabbix.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        {{- include "openshelter.labels" . | nindent 8 }}
+        {{- include "openshelter.zabbix.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: server
+    spec:
+      serviceAccountName: {{ .Release.Name }}-zabbix
+      containers:
+        - name: zabbix-server
+          image: "{{ .Values.zabbix.image.repository }}:{{ .Values.zabbix.image.tag }}"
+          imagePullPolicy: {{ .Values.zabbix.image.pullPolicy }}
+          ports:
+            - name: zabbix
+              containerPort: 10051
+              protocol: TCP
+          env:
+            - name: DB_SERVER_HOST
+              value: {{ .Values.zabbix.db.host | quote }}
+            - name: DB_SERVER_PORT
+              value: {{ .Values.zabbix.db.port | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.zabbix.db.name | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.zabbix.db.user | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-zabbix-rds
+                  key: db-password
+          livenessProbe:
+            tcpSocket:
+              port: zabbix
+            initialDelaySeconds: 60
+            periodSeconds: 20
+            failureThreshold: 5
+          readinessProbe:
+            tcpSocket:
+              port: zabbix
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.zabbix.resources | nindent 12 }}
+---
+{{- if .Values.zabbix.web.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-zabbix-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openshelter.labels" . | nindent 4 }}
+    {{- include "openshelter.zabbix.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.zabbix.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "openshelter.zabbix.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "openshelter.labels" . | nindent 8 }}
+        {{- include "openshelter.zabbix.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+    spec:
+      serviceAccountName: {{ .Release.Name }}-zabbix
+      containers:
+        - name: zabbix-web
+          image: "{{ .Values.zabbix.web.image.repository }}:{{ .Values.zabbix.web.image.tag }}"
+          imagePullPolicy: {{ .Values.zabbix.web.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: DB_SERVER_HOST
+              value: {{ .Values.zabbix.db.host | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.zabbix.db.name | quote }}
+            - name: POSTGRES_USER
+              value: {{ .Values.zabbix.db.user | quote }}
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Release.Name }}-zabbix-rds
+                  key: db-password
+            - name: ZBX_SERVER_HOST
+              value: {{ .Release.Name }}-zabbix-server
+            - name: PHP_TZ
+              value: {{ .Values.zabbix.web.timezone | quote }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.zabbix.resources | nindent 12 }}
+{{- end }}
+{{- end }}

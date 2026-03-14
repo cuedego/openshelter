@@ -10,15 +10,19 @@ variable "vpc_cidr" {
   type = string
 }
 
-variable "eks_cluster_role_arn" {
-  type = string
-}
-
-variable "eks_subnet_ids" {
-  type = list(string)
-}
-
 variable "rds_password" {
   type      = string
   sensitive = true
+}
+
+variable "zabbix_admin_password" {
+  type        = string
+  sensitive   = true
+  description = "Zabbix admin user password stored in AWS Secrets Manager"
+}
+
+variable "mqtt_password" {
+  type        = string
+  sensitive   = true
+  description = "MQTT broker authentication password stored in AWS Secrets Manager"
 }

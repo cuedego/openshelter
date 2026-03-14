@@ -4,7 +4,7 @@ terraform {
   backend "s3" {
     bucket         = "replace-me-terraform-state"
     key            = "openshelter/dev/terraform.tfstate"
-    region         = "us-east-1"
+    region         = "eu-central-1"
     dynamodb_table = "replace-me-terraform-lock"
     encrypt        = true
   }
@@ -13,6 +13,10 @@ terraform {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
+    }
+    tls = {
+      source  = "hashicorp/tls"
+      version = "~> 4.0"
     }
   }
 }
