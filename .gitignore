@@ -1,0 +1,25 @@
+# Terraform
+**/.terraform/*
+**/.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+crash.log
+
+# Ansible
+*.retry
+
+# Kubernetes/Helm
+*.secret.yaml
+
+# Env files
+.env
+.env.*
+
+# OS/Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Python cache (if used by tooling)
+__pycache__/
+*.pyc

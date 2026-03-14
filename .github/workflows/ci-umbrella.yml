@@ -1,0 +1,73 @@
+name: CI Umbrella
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  language-check:
+    name: Enforce English Repository Content
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run language check
+        run: bash ci/check-english.sh
+
+  terraform-check:
+    name: Terraform Format and Validate
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+      - name: Terraform fmt check
+        run: terraform fmt -check -recursive platform/terraform
+      - name: Validate bootstrap
+        run: |
+          terraform -chdir=platform/terraform/bootstrap init -backend=false
+          terraform -chdir=platform/terraform/bootstrap validate
+      - name: Validate dev environment
+        run: |
+          terraform -chdir=platform/terraform/envs/dev init -backend=false
+          terraform -chdir=platform/terraform/envs/dev validate
+      - name: Validate stg environment
+        run: |
+          terraform -chdir=platform/terraform/envs/stg init -backend=false
+          terraform -chdir=platform/terraform/envs/stg validate
+      - name: Validate prod environment
+        run: |
+          terraform -chdir=platform/terraform/envs/prod init -backend=false
+          terraform -chdir=platform/terraform/envs/prod validate
+
+  helm-lint:
+    name: Helm Lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+      - name: Lint chart
+        run: helm lint platform/gitops/helm/charts/openshelter-stack
+
+  ansible-syntax:
+    name: Ansible Syntax Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Ansible
+        run: pip install ansible
+      - name: Syntax check playbook
+        run: ansible-playbook --syntax-check ops/ansible/playbooks/zabbix-config.yml

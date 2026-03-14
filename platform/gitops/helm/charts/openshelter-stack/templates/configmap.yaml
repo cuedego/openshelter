@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Release.Name }}-metadata
+  labels:
+    app.kubernetes.io/name: openshelter-stack
+data:
+  environment: {{ .Values.global.environment | quote }}

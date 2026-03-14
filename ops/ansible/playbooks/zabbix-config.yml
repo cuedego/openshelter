@@ -1,0 +1,7 @@
+---
+- name: Configure Zabbix through API
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  roles:
+    - role: zabbix_api

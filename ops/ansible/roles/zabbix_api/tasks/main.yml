@@ -1,0 +1,4 @@
+---
+- name: Placeholder for Zabbix API configuration tasks
+  ansible.builtin.debug:
+    msg: "Zabbix API role scaffold is ready."

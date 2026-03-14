@@ -1,0 +1,8 @@
+* @openshelter/platform-team
+
+/platform/terraform/ @openshelter/platform-team @openshelter/sre-team
+/platform/gitops/ @openshelter/platform-team @openshelter/sre-team
+/ops/ansible/ @openshelter/ops-team @openshelter/sre-team
+/.github/workflows/ @openshelter/platform-team
+/security/ @openshelter/security-team
+/docs/ @openshelter/sre-team

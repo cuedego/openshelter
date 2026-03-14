@@ -1,0 +1,6 @@
+region      = "us-east-1"
+environment = "dev"
+vpc_cidr    = "10.20.0.0/16"
+eks_cluster_role_arn = "arn:aws:iam::123456789012:role/openshelter-eks-control-plane"
+eks_subnet_ids = ["subnet-aaaaaaaa", "subnet-bbbbbbbb"]
+rds_password = "REPLACE_ME_FROM_SECRETS_MANAGER"
