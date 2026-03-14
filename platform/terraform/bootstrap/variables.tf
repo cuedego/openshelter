@@ -13,6 +13,16 @@ variable "lock_table_name" {
   type        = string
 }
 
+variable "github_org" {
+  description = "GitHub organization or user (e.g. cuedego)"
+  type        = string
+}
+
+variable "github_repo" {
+  description = "GitHub repository name (e.g. openshelter)"
+  type        = string
+}
+
 variable "tags" {
   description = "Common tags"
   type        = map(string)

@@ -3,5 +3,20 @@
   hosts: localhost
   connection: local
   gather_facts: false
+
+  # All community.zabbix.* modules inherit these connection params.
+  # The actual login_password is fetched from AWS Secrets Manager inside
+  # the role (zabbix_login_password set_fact), so we reference the variable here
+  # and it will be resolved after the role sets it.
+  # NOTE: module_defaults are evaluated at task execution time, not play parse time,
+  # so the variable is available after the set_fact task in the role.
+  module_defaults:
+    group/community.zabbix.zabbix:
+      server_url: "{{ zabbix_server_url }}"
+      login_user: "{{ zabbix_login_user }}"
+      login_password: "{{ zabbix_login_password | default('') }}"
+      http_agent: "ansible"
+      validate_certs: false
+
   roles:
     - role: zabbix_api

@@ -1,0 +1,21 @@
+---
+# ──────────────────────────────────────────────
+# AWS configuration
+# ──────────────────────────────────────────────
+aws_region: "eu-central-1"
+
+# Deployment environment: dev | stg | prod
+# Override at runtime: -e openshelter_env=stg
+openshelter_env: "{{ lookup('env', 'OPENSHELTER_ENV') | default('dev', true) }}"
+
+# ──────────────────────────────────────────────
+# Zabbix API connection
+# Secrets are fetched at run-time from AWS Secrets Manager.
+# Override ZABBIX_URL before running the playbook:
+#   export ZABBIX_URL=http://<LoadBalancer-DNS>/api_jsonrpc.php
+# ──────────────────────────────────────────────
+zabbix_server_url: "{{ lookup('env', 'ZABBIX_URL') | default('http://localhost:8080/api_jsonrpc.php', true) }}"
+zabbix_login_user: "Admin"
+
+# AWS Secrets Manager path for the Zabbix Admin password
+zabbix_secret_name: "openshelter-{{ openshelter_env }}/zabbix/admin-password"

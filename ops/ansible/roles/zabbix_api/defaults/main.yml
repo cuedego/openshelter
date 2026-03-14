@@ -1,0 +1,28 @@
+---
+# ──────────────────────────────────────────────────────────────────────
+# Zabbix host group names
+# ──────────────────────────────────────────────────────────────────────
+zabbix_hostgroup_openshelter: "OpenShelter"
+zabbix_hostgroup_mqtt: "OpenShelter-MQTT"
+zabbix_hostgroup_zabbix: "OpenShelter-Zabbix"
+
+# ──────────────────────────────────────────────────────────────────────
+# Service DNS names inside the cluster
+# Override these with the actual LoadBalancer DNS or service FQDN
+# after 'kubectl get svc' on the target cluster.
+# ──────────────────────────────────────────────────────────────────────
+mqtt_service_host: "mqtt.default.svc.cluster.local"
+zabbix_web_host: "zabbix-web.default.svc.cluster.local"
+zabbix_agent_port: "10050"
+
+# ──────────────────────────────────────────────────────────────────────
+# Zabbix template names (must exist in Zabbix server)
+# ──────────────────────────────────────────────────────────────────────
+zabbix_template_linux: "Linux by Zabbix agent"
+
+# ──────────────────────────────────────────────────────────────────────
+# Alerting action (optional — set to true once a media type is configured)
+# ──────────────────────────────────────────────────────────────────────
+zabbix_configure_action: false
+zabbix_action_name: "OpenShelter Trigger Alerts"
+zabbix_action_severity_min: "average"   # info | warning | average | high | disaster

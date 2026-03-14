@@ -67,3 +67,12 @@ module "secrets" {
   }
   tags = local.common_tags
 }
+
+module "irsa_eso" {
+  source             = "../../modules/irsa-eso"
+  oidc_provider_arn  = module.eks.oidc_provider_arn
+  oidc_provider_url  = module.eks.oidc_provider_url
+  role_name          = "${local.name_prefix}-eso-irsa"
+  secret_path_prefix = local.name_prefix
+  tags               = local.common_tags
+}

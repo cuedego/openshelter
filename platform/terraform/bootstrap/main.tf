@@ -33,3 +33,13 @@ resource "aws_dynamodb_table" "terraform_lock" {
 
   tags = var.tags
 }
+
+module "github_oidc" {
+  source = "../modules/github-oidc"
+
+  github_org        = var.github_org
+  github_repo       = var.github_repo
+  state_bucket_name = var.state_bucket_name
+  lock_table_name   = var.lock_table_name
+  tags              = var.tags
+}
