@@ -1,23 +1,29 @@
 SHELL := /bin/bash
 
-AWS_REGION   ?= eu-central-1
-AWS_ACCOUNT  ?= # Set to your 12-digit AWS account ID
-ECR_REGISTRY ?= # Defaults to $(AWS_ACCOUNT).dkr.ecr.$(AWS_REGION).amazonaws.com
+ENV ?= dev
+
+# Central config (single source of truth)
+-include config/global.env
+-include config/env/$(ENV).env
+
+AWS_REGION   ?=
+AWS_ACCOUNT_ID ?= # Set to your 12-digit AWS account ID in config/global.env
+ECR_REGISTRY ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 IMAGE_TAG    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "local")
 
 # Cluster bootstrap knobs
-CLUSTER_NAME   ?= openshelter-dev
-ENV            ?= dev
+CLUSTER_NAME   ?= openshelter-$(ENV)
 ESO_IRSA_ROLE_ARN ?= # Set after applying bootstrap Terraform
 
 # Ansible knobs
 ZABBIX_URL ?= http://localhost:8080/api_jsonrpc.php
 
 .PHONY: fmt validate \
-        terraform-bootstrap terraform-dev-plan \
+	terraform-bootstrap terraform-dev-plan terraform-env-plan \
         helm-lint ansible-lint ansible-syntax \
         eks-kubeconfig cluster-bootstrap install-argocd install-eso argocd-bootstrap \
-        ecr-login docker-build docker-push docker-build-push
+	ecr-login docker-build docker-push docker-build-push \
+	config-check show-config render-config
 
 fmt:
 	@echo "Formatting Terraform files..."
@@ -35,13 +41,35 @@ validate:
 	@terraform -chdir=platform/terraform/envs/prod validate
 	@helm lint platform/gitops/helm/charts/openshelter-stack
 
+show-config:
+	@echo "ENV=$(ENV)"
+	@echo "AWS_REGION=$(AWS_REGION)"
+	@echo "CLUSTER_NAME=$(CLUSTER_NAME)"
+	@echo "ECR_REGISTRY=$(ECR_REGISTRY)"
+
+config-check:
+	@echo "Checking for legacy region references (us-east-1)..."
+	@! grep -RIn "us-east-1" . --exclude-dir=.git --exclude-dir=.terraform --exclude=Makefile
+
+render-config:
+	@bash scripts/render-config.sh
+
 terraform-bootstrap:
+	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
 	@terraform -chdir=platform/terraform/bootstrap init
 	@terraform -chdir=platform/terraform/bootstrap plan
 
 terraform-dev-plan:
-	@terraform -chdir=platform/terraform/envs/dev init
+	@bash scripts/render-config.sh
+	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
+	@terraform -chdir=platform/terraform/envs/dev init -backend-config=backend.hcl
 	@terraform -chdir=platform/terraform/envs/dev plan
+
+terraform-env-plan:
+	@bash scripts/render-config.sh
+	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
+	@terraform -chdir=platform/terraform/envs/$(ENV) init -backend-config=backend.hcl
+	@terraform -chdir=platform/terraform/envs/$(ENV) plan
 
 helm-lint:
 	@helm lint platform/gitops/helm/charts/openshelter-stack

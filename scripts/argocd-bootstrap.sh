@@ -6,20 +6,34 @@ set -euo pipefail
 # ──────────────────────────────────────────────
 # Configuration (override via env vars)
 # ──────────────────────────────────────────────
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
 ENV="${ENV:-dev}"
-AWS_REGION="${AWS_REGION:-eu-central-1}"
+
+# Load centralized config (if present)
+if [[ -f "$REPO_ROOT/config/global.env" ]]; then
+  set -a
+  source "$REPO_ROOT/config/global.env"
+  set +a
+fi
+
+if [[ -f "$REPO_ROOT/config/env/${ENV}.env" ]]; then
+  set -a
+  source "$REPO_ROOT/config/env/${ENV}.env"
+  set +a
+fi
+
+AWS_REGION="${AWS_REGION:-}"
 ARGOCD_NAMESPACE="${ARGOCD_NAMESPACE:-argocd}"
 ESO_NAMESPACE="${ESO_NAMESPACE:-external-secrets}"
 ARGOCD_CHART_VERSION="${ARGOCD_CHART_VERSION:-7.3.4}"
 ESO_CHART_VERSION="${ESO_CHART_VERSION:-0.10.3}"
 
 # IRSA role ARN for the ESO controller service account.
-# Obtain after applying bootstrap Terraform: terraform -chdir=platform/terraform/bootstrap output -raw ecr_push_role_arn
-# A dedicated ESO role ARN should be created; set here or export before running.
+# Obtain after applying env Terraform:
+# terraform -chdir=platform/terraform/envs/${ENV} output -raw eso_irsa_role_arn
 ESO_IRSA_ROLE_ARN="${ESO_IRSA_ROLE_ARN:-}"
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PROJECT_MANIFEST="$REPO_ROOT/platform/gitops/argocd/projects/openshelter-project.yaml"
 ROOT_APP_MANIFEST="$REPO_ROOT/platform/gitops/argocd/apps/root-app.yaml"
@@ -37,6 +51,11 @@ done
 
 if ! kubectl config current-context >/dev/null 2>&1; then
   echo "ERROR: No active Kubernetes context. Run 'aws eks update-kubeconfig ...' first."
+  exit 1
+fi
+
+if [[ -z "$AWS_REGION" ]]; then
+  echo "ERROR: AWS_REGION is empty. Set it in config/global.env or export AWS_REGION."
   exit 1
 fi
 

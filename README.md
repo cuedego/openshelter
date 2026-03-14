@@ -126,11 +126,13 @@ flowchart TB
 - Access is controlled with least-privilege IAM/RBAC and audited.
 
 ## Quick start
+0. Set central configuration values in `config/global.env` and `config/env/{dev,stg,prod}.env`.
 1. Configure AWS credentials with least-privilege permissions.
 2. Run Terraform backend bootstrap in `platform/terraform/bootstrap`.
-3. Plan and validate Terraform stacks in `platform/terraform/envs/dev`.
-4. Validate charts and CI checks (`make validate`).
-5. Bootstrap ArgoCD objects (`make argocd-bootstrap`).
+3. Render environment artifacts from central config (`make render-config`) — this generates Helm values substitutions and `backend.hcl` per Terraform environment.
+4. Plan and validate Terraform stacks in `platform/terraform/envs/dev`.
+5. Validate charts and CI checks (`make validate`).
+6. Bootstrap ArgoCD objects (`make argocd-bootstrap`).
 
 ## Quality Gates
 - English-only repository policy check

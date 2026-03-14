@@ -2,7 +2,7 @@
 # ──────────────────────────────────────────────
 # AWS configuration
 # ──────────────────────────────────────────────
-aws_region: "eu-central-1"
+aws_region: "{{ lookup('env', 'AWS_REGION') }}"
 
 # Deployment environment: dev | stg | prod
 # Override at runtime: -e openshelter_env=stg

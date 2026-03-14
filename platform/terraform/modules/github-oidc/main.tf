@@ -135,15 +135,6 @@ resource "aws_iam_role_policy" "ecr_push" {
         ]
         Resource = "arn:aws:ecr:*:*:repository/openshelter/*"
       },
-      # Allow updating Helm values files back to main
-      {
-        Sid      = "GitHubContentsWrite"
-        Effect   = "Allow"
-        Action   = []
-        Resource = "*"
-        # Note: git push is done via GITHUB_TOKEN, not AWS — this statement
-        # is intentionally empty and serves as documentation.
-      },
     ]
   })
 }

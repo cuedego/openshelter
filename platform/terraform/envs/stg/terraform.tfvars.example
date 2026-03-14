@@ -1,4 +1,4 @@
-region      = "eu-central-1"
+region      = "REPLACE_AWS_REGION"
 environment = "stg"
 vpc_cidr    = "10.255.251.0/24"
 
