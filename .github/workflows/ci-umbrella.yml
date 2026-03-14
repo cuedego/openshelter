@@ -31,22 +31,18 @@ jobs:
         run: terraform fmt -check -recursive platform/terraform
       - name: Validate bootstrap
         run: |
-          echo -n "bootstrap "
           terraform -chdir=platform/terraform/bootstrap init -backend=false
           terraform -chdir=platform/terraform/bootstrap validate
       - name: Validate dev environment
         run: |
-          echo -n "dev "
           terraform -chdir=platform/terraform/envs/dev init -backend=false
           terraform -chdir=platform/terraform/envs/dev validate
       - name: Validate stg environment
         run: |
-          echo -n "stg "
           terraform -chdir=platform/terraform/envs/stg init -backend=false
           terraform -chdir=platform/terraform/envs/stg validate
       - name: Validate prod environment
         run: |
-          echo -n "prod "
           terraform -chdir=platform/terraform/envs/prod init -backend=false
           terraform -chdir=platform/terraform/envs/prod validate
 

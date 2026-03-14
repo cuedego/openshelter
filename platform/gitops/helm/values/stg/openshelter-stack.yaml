@@ -1,0 +1,8 @@
+global:
+  environment: stg
+
+zabbix:
+  enabled: true
+
+mqtt:
+  enabled: true

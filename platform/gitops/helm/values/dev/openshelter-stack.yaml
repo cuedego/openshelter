@@ -1,0 +1,8 @@
+global:
+  environment: dev
+
+zabbix:
+  enabled: true
+
+mqtt:
+  enabled: true
