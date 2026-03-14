@@ -31,4 +31,4 @@ helm-lint:
 	@helm lint platform/gitops/helm/charts/openshelter-stack
 
 ansible-lint:
-	@ansible-playbook --syntax-check ops/ansible/playbooks/zabbix-config.yml
+	@cd ops/ansible && ansible-playbook --syntax-check playbooks/zabbix-config.yml
