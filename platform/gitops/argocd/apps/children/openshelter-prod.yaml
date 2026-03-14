@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openshelter-prod
+  namespace: argocd
+spec:
+  project: openshelter
+  source:
+    repoURL: https://github.com/cuedego/openshelter.git
+    targetRevision: main
+    path: platform/gitops/helm/charts/openshelter-stack
+    helm:
+      valueFiles:
+        - ../../values/prod/openshelter-stack.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: openshelter-prod
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: openshelter
+  namespace: argocd
+spec:
+  description: OpenShelter project for environment applications
+  sourceRepos:
+    - https://github.com/cuedego/openshelter.git
+  destinations:
+    - namespace: openshelter-dev
+      server: https://kubernetes.default.svc
+    - namespace: openshelter-stg
+      server: https://kubernetes.default.svc
+    - namespace: openshelter-prod
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: "*"
+      kind: "*"
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

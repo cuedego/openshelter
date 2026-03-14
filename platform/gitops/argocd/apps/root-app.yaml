@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openshelter-root
+  namespace: argocd
+spec:
+  project: openshelter
+  source:
+    repoURL: https://github.com/cuedego/openshelter.git
+    targetRevision: main
+    path: platform/gitops/argocd/apps/children
+    directory:
+      recurse: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

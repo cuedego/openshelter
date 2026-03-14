@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: fmt validate terraform-bootstrap terraform-dev-plan helm-lint ansible-lint
+.PHONY: fmt validate terraform-bootstrap terraform-dev-plan helm-lint ansible-lint argocd-bootstrap
 
 fmt:
 	@echo "Formatting Terraform files..."
@@ -32,3 +32,6 @@ helm-lint:
 
 ansible-lint:
 	@cd ops/ansible && ansible-playbook --syntax-check playbooks/zabbix-config.yml
+
+argocd-bootstrap:
+	@bash scripts/argocd-bootstrap.sh
