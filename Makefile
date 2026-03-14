@@ -23,7 +23,7 @@ ZABBIX_URL ?= http://localhost:8080/api_jsonrpc.php
         helm-lint ansible-lint ansible-syntax \
         eks-kubeconfig cluster-bootstrap install-argocd install-eso argocd-bootstrap \
 	ecr-login docker-build docker-push docker-build-push \
-	config-check show-config render-config
+	config-check show-config render-config bootstrap-linux
 
 fmt:
 	@echo "Formatting Terraform files..."
@@ -53,6 +53,9 @@ config-check:
 
 render-config:
 	@bash scripts/render-config.sh
+
+bootstrap-linux:
+	@bash scripts/bootstrap-linux.sh
 
 terraform-bootstrap:
 	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
