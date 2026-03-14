@@ -4,7 +4,7 @@ terraform {
   backend "s3" {
     bucket         = "replace-me-terraform-state"
     key            = "openshelter/stg/terraform.tfstate"
-    region         = "us-east-1"
+    region         = "eu-central-1"
     dynamodb_table = "replace-me-terraform-lock"
     encrypt        = true
   }

@@ -1,4 +1,4 @@
-region      = "us-east-1"
+region      = "eu-central-1"
 environment = "dev"
 vpc_cidr    = "10.255.250.0/24"
 

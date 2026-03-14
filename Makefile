@@ -1,7 +1,7 @@
 SHELL := /bin/bash
 
-AWS_REGION  ?= us-east-1
-ECR_REGISTRY ?= # Set to your ECR registry, e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com
+AWS_REGION  ?= eu-central-1
+ECR_REGISTRY ?= # Set to your ECR registry, e.g. 123456789012.dkr.ecr.eu-central-1.amazonaws.com
 IMAGE_TAG   ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "local")
 
 .PHONY: fmt validate terraform-bootstrap terraform-dev-plan helm-lint ansible-lint \
