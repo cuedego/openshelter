@@ -90,6 +90,7 @@ flowchart TB
 ## Structure
 - `platform/terraform`: bootstrap, modules, and environments
 - `platform/gitops`: ArgoCD and Helm
+- `config`: centralized global and per-environment configuration
 - `apps`: containerized workloads (zabbix and mqtt)
 - `ops/ansible`: automation via Zabbix API
 - `scripts`: operational scripts (including ArgoCD bootstrap)
@@ -127,18 +128,22 @@ flowchart TB
 
 ## Quick start
 0. Set central configuration values in `config/global.env` and `config/env/{dev,stg,prod}.env`.
+	- Required in `config/global.env`: `AWS_REGION`, `AWS_ACCOUNT_ID`, `TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `TF_STATE_KEY_PREFIX`.
+	- Required in each `config/env/*.env`: `ENV`, `CLUSTER_NAME`, `VPC_CIDR`, `RDS_HOST` (and optional `TF_STATE_KEY`).
 1. Configure AWS credentials with least-privilege permissions.
 2. Run Terraform backend bootstrap in `platform/terraform/bootstrap`.
-3. Render environment artifacts from central config (`make render-config`) — this generates Helm values substitutions and `backend.hcl` per Terraform environment.
-4. Plan and validate Terraform stacks in `platform/terraform/envs/dev`.
-5. Validate charts and CI checks (`make validate`).
-6. Bootstrap ArgoCD objects (`make argocd-bootstrap`).
+3. Inspect loaded config (`make show-config ENV=dev`).
+4. Render environment artifacts from central config (`make render-config`) — this generates `backend.hcl` per Terraform environment and updates environment Helm values with `RDS_HOST`.
+5. Plan Terraform for one environment (`make terraform-env-plan ENV=dev`).
+6. Validate charts and checks (`make validate` and `make config-check`).
+7. Bootstrap ArgoCD objects (`make argocd-bootstrap ENV=dev`).
 
 ## Quality Gates
 - English-only repository policy check
 - Terraform formatting and validation (`bootstrap`, `dev`, `stg`, `prod`)
 - Helm linting
 - Ansible playbook syntax validation
+- Config consistency check for legacy region literals (`make config-check`)
 
 ## ADRs and Operational Docs
 - Architecture decisions are tracked in `docs/adr`.
