@@ -6,10 +6,17 @@ on:
     branches:
       - main
 
+# Default: read-only. Jobs that need extra permissions declare them explicitly.
 permissions:
   contents: read
 
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY_ALIAS: openshelter   # logical prefix; actual registry resolved at runtime
+
 jobs:
+  # ── Static analysis (run on every event) ────────────────────────────────────
+
   language-check:
     name: Enforce English Repository Content
     runs-on: ubuntu-latest
@@ -72,3 +79,168 @@ jobs:
       - name: Syntax check playbook
         working-directory: ops/ansible
         run: ansible-playbook --syntax-check playbooks/zabbix-config.yml
+
+  # ── Terraform plan — PRs only ────────────────────────────────────────────────
+  #
+  # Requires a GitHub OIDC trust on the AWS side:
+  #   Secret: TF_PLAN_ROLE_ARN  →  IAM role arn allowed to run terraform plan
+  #
+  terraform-plan:
+    name: Terraform Plan (dev)
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    needs: [terraform-check]
+    permissions:
+      id-token: write       # required for OIDC token exchange
+      contents: read
+      pull-requests: write  # required to post the plan as a PR comment
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.TF_PLAN_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform init (dev)
+        run: terraform -chdir=platform/terraform/envs/dev init -input=false
+
+      - name: Terraform plan (dev)
+        id: plan
+        run: |
+          terraform -chdir=platform/terraform/envs/dev plan \
+            -input=false \
+            -no-color \
+            -var="rds_password=REDACTED" \
+            -var="zabbix_admin_password=REDACTED" \
+            -var="mqtt_password=REDACTED" \
+            2>&1 | tee /tmp/plan.txt
+          echo "exitcode=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+        continue-on-error: true
+
+      - name: Post plan as PR comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync('/tmp/plan.txt', 'utf8').slice(0, 65000);
+            const body = `### Terraform Plan — \`envs/dev\`\n\`\`\`hcl\n${plan}\n\`\`\``;
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c => c.body.startsWith('### Terraform Plan'));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Fail if plan errored
+        if: steps.plan.outputs.exitcode != '0'
+        run: exit 1
+
+  # ── Docker build + ECR push — main branch only ──────────────────────────────
+  #
+  # Requires:
+  #   Secret: ECR_PUSH_ROLE_ARN  →  IAM role with ecr:GetAuthorizationToken +
+  #                                  ecr:BatchCheckLayerAvailability +
+  #                                  ecr:PutImage etc.
+  #   Secret: ECR_REGISTRY       →  AWS account ECR registry
+  #                                  e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com
+  #
+  docker-build-push:
+    name: Docker Build and Push to ECR
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [language-check, terraform-check, helm-lint, ansible-syntax]
+    permissions:
+      id-token: write
+      contents: write   # required to push the image-tag update commit
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tag }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Fetch full history so we can push a commit back
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve image tag (short SHA)
+        id: meta
+        run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.ECR_PUSH_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push — zabbix
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/zabbix
+          push: true
+          tags: |
+            ${{ secrets.ECR_REGISTRY }}/openshelter/zabbix:${{ steps.meta.outputs.tag }}
+            ${{ secrets.ECR_REGISTRY }}/openshelter/zabbix:latest
+
+      - name: Build and push — mqtt
+        uses: docker/build-push-action@v5
+        with:
+          context: apps/mqtt
+          push: true
+          tags: |
+            ${{ secrets.ECR_REGISTRY }}/openshelter/mqtt:${{ steps.meta.outputs.tag }}
+            ${{ secrets.ECR_REGISTRY }}/openshelter/mqtt:latest
+
+      # Update image tags in all environment values files and commit back
+      - name: Install yq
+        run: |
+          wget -qO /usr/local/bin/yq \
+            https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+          chmod +x /usr/local/bin/yq
+
+      - name: Update image tags in Helm values
+        env:
+          TAG: ${{ steps.meta.outputs.tag }}
+          REGISTRY: ${{ secrets.ECR_REGISTRY }}
+        run: |
+          for env in dev stg prod; do
+            VALUES="platform/gitops/helm/values/${env}/openshelter-stack.yaml"
+            yq -i ".zabbix.image.repository = \"${REGISTRY}/openshelter/zabbix\"" "$VALUES"
+            yq -i ".zabbix.image.tag        = \"${TAG}\""                          "$VALUES"
+            yq -i ".mqtt.image.repository   = \"${REGISTRY}/openshelter/mqtt\""   "$VALUES"
+            yq -i ".mqtt.image.tag          = \"${TAG}\""                          "$VALUES"
+          done
+
+      - name: Commit and push updated image tags
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add platform/gitops/helm/values/*/openshelter-stack.yaml
+          git diff --cached --quiet || \
+            git commit -m "chore(ci): bump image tags to ${GITHUB_SHA::7} [skip ci]"
+          git push

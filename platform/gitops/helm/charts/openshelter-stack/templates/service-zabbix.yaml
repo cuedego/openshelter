@@ -1,0 +1,43 @@
+{{- if .Values.zabbix.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-zabbix-server
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openshelter.labels" . | nindent 4 }}
+    {{- include "openshelter.zabbix.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+spec:
+  type: {{ .Values.zabbix.service.type }}
+  ports:
+    - port: {{ .Values.zabbix.service.port }}
+      targetPort: zabbix
+      protocol: TCP
+      name: zabbix
+  selector:
+    {{- include "openshelter.zabbix.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: server
+---
+{{- if .Values.zabbix.web.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}-zabbix-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openshelter.labels" . | nindent 4 }}
+    {{- include "openshelter.zabbix.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  type: {{ .Values.zabbix.web.service.type }}
+  ports:
+    - port: {{ .Values.zabbix.web.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "openshelter.zabbix.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+{{- end }}
+{{- end }}

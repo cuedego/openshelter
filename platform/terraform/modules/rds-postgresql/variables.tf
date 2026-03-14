@@ -25,6 +25,21 @@ variable "instance_class" {
   default     = "db.t4g.micro"
 }
 
+variable "vpc_id" {
+  type        = string
+  description = "VPC ID where the RDS instance will be placed"
+}
+
+variable "vpc_cidr" {
+  type        = string
+  description = "VPC CIDR block used in the security group ingress rule"
+}
+
+variable "subnet_ids" {
+  type        = list(string)
+  description = "Private subnet IDs for the DB subnet group"
+}
+
 variable "tags" {
   type        = map(string)
   description = "Resource tags"

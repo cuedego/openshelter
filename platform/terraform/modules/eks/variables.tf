@@ -8,14 +8,33 @@ variable "vpc_id" {
   description = "VPC ID"
 }
 
-variable "cluster_role_arn" {
-  type        = string
-  description = "IAM role ARN used by the EKS control plane"
-}
-
 variable "subnet_ids" {
   type        = list(string)
-  description = "Subnets used by the EKS control plane"
+  description = "Private subnet IDs for the EKS control plane and node group"
+}
+
+variable "node_instance_types" {
+  type        = list(string)
+  description = "EC2 instance types for the managed node group"
+  default     = ["t3.medium"]
+}
+
+variable "node_desired_size" {
+  type        = number
+  description = "Desired number of nodes"
+  default     = 2
+}
+
+variable "node_min_size" {
+  type        = number
+  description = "Minimum number of nodes"
+  default     = 1
+}
+
+variable "node_max_size" {
+  type        = number
+  description = "Maximum number of nodes"
+  default     = 4
 }
 
 variable "tags" {

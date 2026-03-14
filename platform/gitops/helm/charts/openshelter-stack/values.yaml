@@ -1,8 +1,92 @@
 global:
   environment: dev
 
+# -- IRSA: override annotations per component SA if needed
+serviceAccount:
+  zabbix:
+    annotations: {}
+  mqtt:
+    annotations: {}
+
 zabbix:
   enabled: true
 
+  image:
+    repository: "REPLACE_ME.dkr.ecr.us-east-1.amazonaws.com/openshelter/zabbix"
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 500m
+      memory: 1Gi
+
+  # Zabbix server TCP port exposed inside the cluster
+  service:
+    type: ClusterIP
+    port: 10051
+
+  # Zabbix frontend (uses official image directly — no custom build needed)
+  web:
+    enabled: true
+    image:
+      repository: zabbix/zabbix-web-nginx-pgsql
+      tag: "alpine-7.0-latest"
+      pullPolicy: IfNotPresent
+    timezone: UTC
+    service:
+      type: ClusterIP
+      port: 8080
+
+  db:
+    host: "REPLACE_ME.rds.amazonaws.com"
+    port: "5432"
+    name: "openshelter"
+    user: "openshelter_admin"
+
+  # Name of the ClusterSecretStore (created during cluster bootstrap)
+  secretStore: aws-secrets-manager
+
+  # AWS Secrets Manager secret paths for each credential
+  secrets:
+    rdsPassword:
+      remoteRef: "openshelter-dev/rds/password"
+    adminPassword:
+      remoteRef: "openshelter-dev/zabbix/admin-password"
+
 mqtt:
   enabled: true
+
+  # Non-sensitive broker username — password comes from ExternalSecret
+  username: openshelter
+
+  image:
+    repository: "REPLACE_ME.dkr.ecr.us-east-1.amazonaws.com/openshelter/mqtt"
+    tag: "0.1.0"
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+  service:
+    type: ClusterIP
+    mqttPort: 1883
+    wsPort: 9001
+
+  secretStore: aws-secrets-manager
+
+  secrets:
+    password:
+      remoteRef: "openshelter-dev/mqtt/password"
