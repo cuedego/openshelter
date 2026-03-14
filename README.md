@@ -127,16 +127,17 @@ flowchart TB
 - Access is controlled with least-privilege IAM/RBAC and audited.
 
 ## Quick start
-0. Set central configuration values in `config/global.env` and `config/env/{dev,stg,prod}.env`.
+0. Prepare local tooling (Linux): `make bootstrap-linux` (or `SKIP_DOCKER=true make bootstrap-linux` if Docker is managed externally).
+1. Set central configuration values in `config/global.env` and `config/env/{dev,stg,prod}.env`.
 	- Required in `config/global.env`: `AWS_REGION`, `AWS_ACCOUNT_ID`, `TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `TF_STATE_KEY_PREFIX`.
 	- Required in each `config/env/*.env`: `ENV`, `CLUSTER_NAME`, `VPC_CIDR`, `RDS_HOST` (and optional `TF_STATE_KEY`).
-1. Configure AWS credentials with least-privilege permissions.
-2. Run Terraform backend bootstrap in `platform/terraform/bootstrap`.
-3. Inspect loaded config (`make show-config ENV=dev`).
-4. Render environment artifacts from central config (`make render-config`) — this generates `backend.hcl` per Terraform environment and updates environment Helm values with `RDS_HOST`.
-5. Plan Terraform for one environment (`make terraform-env-plan ENV=dev`).
-6. Validate charts and checks (`make validate` and `make config-check`).
-7. Bootstrap ArgoCD objects (`make argocd-bootstrap ENV=dev`).
+2. Configure AWS credentials with least-privilege permissions.
+3. Run Terraform backend bootstrap in `platform/terraform/bootstrap`.
+4. Inspect loaded config (`make show-config ENV=dev`).
+5. Render environment artifacts from central config (`make render-config`) — this generates `backend.hcl` per Terraform environment and updates environment Helm values with `RDS_HOST`.
+6. Plan Terraform for one environment (`make terraform-env-plan ENV=dev`).
+7. Validate charts and checks (`make validate` and `make config-check`).
+8. Bootstrap ArgoCD objects (`make argocd-bootstrap ENV=dev`).
 
 ## Quality Gates
 - English-only repository policy check

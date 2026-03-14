@@ -15,6 +15,7 @@ This folder defines the operational baseline for OpenShelter.
 - `runbook-template.md`
 
 ## Operational Entry Points
+- Local tooling bootstrap (Linux): `make bootstrap-linux` (or `SKIP_DOCKER=true make bootstrap-linux`)
 - Central configuration source: `config/global.env` and `config/env/{dev,stg,prod}.env`
 - Render runtime artifacts: `make render-config`
 - Inspect effective settings: `make show-config ENV=<dev|stg|prod>`

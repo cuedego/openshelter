@@ -15,6 +15,18 @@ TF_VERSION="${TF_VERSION:-$TF_VERSION_DEFAULT}"
 KUBECTL_VERSION="${KUBECTL_VERSION:-$KUBECTL_VERSION_DEFAULT}"
 YQ_VERSION="${YQ_VERSION:-$YQ_VERSION_DEFAULT}"
 SKIP_DOCKER="${SKIP_DOCKER:-false}"
+TMP_DIRS=()
+
+cleanup_tmpdirs() {
+  local dir
+  for dir in "${TMP_DIRS[@]:-}"; do
+    if [[ -n "${dir:-}" && -d "$dir" ]]; then
+      rm -rf "$dir"
+    fi
+  done
+}
+
+trap cleanup_tmpdirs EXIT
 
 if [[ "${EUID}" -eq 0 ]]; then
   echo "Run this script as a regular user with sudo access (not as root)."
@@ -102,7 +114,7 @@ install_awscli() {
   local arch tmpdir
   arch="$(arch_map)"
   tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$tmpdir"' RETURN
+  TMP_DIRS+=("$tmpdir")
 
   log "Installing AWS CLI v2..."
   if [[ "$arch" == "amd64" ]]; then
@@ -124,7 +136,7 @@ install_terraform() {
   local arch tmpdir url
   arch="$(arch_map)"
   tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$tmpdir"' RETURN
+  TMP_DIRS+=("$tmpdir")
   url="https://releases.hashicorp.com/terraform/${TF_VERSION}/terraform_${TF_VERSION}_linux_${arch}.zip"
 
   log "Installing Terraform ${TF_VERSION}..."
@@ -142,7 +154,7 @@ install_kubectl() {
   local arch tmpdir url
   arch="$(arch_map)"
   tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$tmpdir"' RETURN
+  TMP_DIRS+=("$tmpdir")
   url="https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${arch}/kubectl"
 
   log "Installing kubectl ${KUBECTL_VERSION}..."
@@ -159,7 +171,7 @@ install_helm() {
 
   local tmpdir
   tmpdir="$(mktemp -d)"
-  trap 'rm -rf "$tmpdir"' RETURN
+  TMP_DIRS+=("$tmpdir")
 
   log "Installing Helm..."
   curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 -o "$tmpdir/get_helm.sh"
