@@ -1,11 +1,29 @@
 SHELL := /bin/bash
 
-AWS_REGION  ?= eu-central-1
-ECR_REGISTRY ?= # Set to your ECR registry, e.g. 123456789012.dkr.ecr.eu-central-1.amazonaws.com
-IMAGE_TAG   ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "local")
+ENV ?= dev
 
-.PHONY: fmt validate terraform-bootstrap terraform-dev-plan helm-lint ansible-lint \
-        argocd-bootstrap docker-build docker-push docker-build-push ecr-login
+# Central config (single source of truth)
+-include config/global.env
+-include config/env/$(ENV).env
+
+AWS_REGION   ?=
+AWS_ACCOUNT_ID ?= # Set to your 12-digit AWS account ID in config/global.env
+ECR_REGISTRY ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
+IMAGE_TAG    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "local")
+
+# Cluster bootstrap knobs
+CLUSTER_NAME   ?= openshelter-$(ENV)
+ESO_IRSA_ROLE_ARN ?= # Set after applying bootstrap Terraform
+
+# Ansible knobs
+ZABBIX_URL ?= http://localhost:8080/api_jsonrpc.php
+
+.PHONY: fmt validate \
+	terraform-bootstrap terraform-dev-plan terraform-env-plan \
+        helm-lint ansible-lint ansible-syntax \
+        eks-kubeconfig cluster-bootstrap install-argocd install-eso argocd-bootstrap \
+	ecr-login docker-build docker-push docker-build-push \
+	config-check show-config render-config
 
 fmt:
 	@echo "Formatting Terraform files..."
@@ -13,6 +31,8 @@ fmt:
 
 validate:
 	@echo "Validating Terraform and Helm scaffolding..."
+	@terraform -chdir=platform/terraform/bootstrap init -backend=false
+	@terraform -chdir=platform/terraform/bootstrap validate
 	@terraform -chdir=platform/terraform/envs/dev init -backend=false
 	@terraform -chdir=platform/terraform/envs/dev validate
 	@terraform -chdir=platform/terraform/envs/stg init -backend=false
@@ -21,24 +41,89 @@ validate:
 	@terraform -chdir=platform/terraform/envs/prod validate
 	@helm lint platform/gitops/helm/charts/openshelter-stack
 
+show-config:
+	@echo "ENV=$(ENV)"
+	@echo "AWS_REGION=$(AWS_REGION)"
+	@echo "CLUSTER_NAME=$(CLUSTER_NAME)"
+	@echo "ECR_REGISTRY=$(ECR_REGISTRY)"
+
+config-check:
+	@echo "Checking for legacy region references (us-east-1)..."
+	@! grep -RIn "us-east-1" . --exclude-dir=.git --exclude-dir=.terraform --exclude=Makefile
+
+render-config:
+	@bash scripts/render-config.sh
+
 terraform-bootstrap:
+	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
 	@terraform -chdir=platform/terraform/bootstrap init
 	@terraform -chdir=platform/terraform/bootstrap plan
 
 terraform-dev-plan:
-	@terraform -chdir=platform/terraform/envs/dev init
+	@bash scripts/render-config.sh
+	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
+	@terraform -chdir=platform/terraform/envs/dev init -backend-config=backend.hcl
 	@terraform -chdir=platform/terraform/envs/dev plan
+
+terraform-env-plan:
+	@bash scripts/render-config.sh
+	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
+	@terraform -chdir=platform/terraform/envs/$(ENV) init -backend-config=backend.hcl
+	@terraform -chdir=platform/terraform/envs/$(ENV) plan
 
 helm-lint:
 	@helm lint platform/gitops/helm/charts/openshelter-stack
 
-ansible-lint:
+ansible-lint: ansible-syntax
+
+ansible-syntax:
 	@cd ops/ansible && ansible-playbook --syntax-check playbooks/zabbix-config.yml
 
-argocd-bootstrap:
-	@bash scripts/argocd-bootstrap.sh
+## Install Ansible Galaxy collections defined in requirements.yml
+ansible-install-deps:
+	@ansible-galaxy collection install -r ops/ansible/requirements.yml
 
+## Run Zabbix API configuration. Requires:
+##   ZABBIX_URL=http://<lb-dns>/api_jsonrpc.php
+##   OPENSHELTER_ENV=dev|stg|prod
+##   AWS credentials in environment (e.g. via aws-vault or IAM role)
+## Usage: make ansible-run OPENSHELTER_ENV=dev ZABBIX_URL=http://...
+ansible-run:
+	@cd ops/ansible && OPENSHELTER_ENV=$(ENV) ZABBIX_URL=$(ZABBIX_URL) \
+	  ansible-playbook playbooks/zabbix-config.yml -i inventories/$(ENV)/hosts.yml
+
+## ──────────────────────────────────────────────────────────────────────
+## Cluster bootstrap
+## ──────────────────────────────────────────────────────────────────────
+
+## Update local kubeconfig from EKS. Usage: make eks-kubeconfig CLUSTER_NAME=openshelter-dev ENV=dev
+eks-kubeconfig:
+	@aws eks update-kubeconfig \
+	  --region $(AWS_REGION) \
+	  --name $(CLUSTER_NAME) \
+	  --alias $(ENV)
+
+## Install ArgoCD only (Helm).
+install-argocd:
+	@SKIP_ESO=true bash scripts/argocd-bootstrap.sh
+
+## Install External Secrets Operator only (Helm).
+install-eso:
+	@SKIP_ARGOCD=true bash scripts/argocd-bootstrap.sh
+
+## Full bootstrap: ArgoCD + ESO + ClusterSecretStore + App-of-Apps.
+## Usage: make cluster-bootstrap ENV=dev ESO_IRSA_ROLE_ARN=arn:aws:iam::...
+cluster-bootstrap:
+	@ENV=$(ENV) AWS_REGION=$(AWS_REGION) \
+	 ESO_IRSA_ROLE_ARN=$(ESO_IRSA_ROLE_ARN) \
+	 bash scripts/argocd-bootstrap.sh
+
+## Alias kept for backward compatibility
+argocd-bootstrap: cluster-bootstrap
+
+## ──────────────────────────────────────────────────────────────────────
 ## Docker targets — require Docker daemon and AWS CLI configured locally
+## ──────────────────────────────────────────────────────────────────────
 
 ecr-login:
 	@aws ecr get-login-password --region $(AWS_REGION) | \

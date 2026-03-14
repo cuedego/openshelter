@@ -1,13 +1,7 @@
 terraform {
   required_version = ">= 1.8.0"
 
-  backend "s3" {
-    bucket         = "replace-me-terraform-state"
-    key            = "openshelter/dev/terraform.tfstate"
-    region         = "eu-central-1"
-    dynamodb_table = "replace-me-terraform-lock"
-    encrypt        = true
-  }
+  backend "s3" {}
 
   required_providers {
     aws = {

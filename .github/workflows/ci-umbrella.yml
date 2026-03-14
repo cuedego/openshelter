@@ -10,10 +10,6 @@ on:
 permissions:
   contents: read
 
-env:
-  AWS_REGION: us-east-1
-  ECR_REGISTRY_ALIAS: openshelter   # logical prefix; actual registry resolved at runtime
-
 jobs:
   # ── Static analysis (run on every event) ────────────────────────────────────
 
@@ -98,6 +94,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Load centralized config
+        shell: bash
+        run: |
+          set -a
+          source config/global.env
+          set +a
+          echo "AWS_REGION=${AWS_REGION}" >> "$GITHUB_ENV"
+          echo "ECR_REGISTRY_ALIAS=${ECR_REGISTRY_ALIAS}" >> "$GITHUB_ENV"
+
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -107,8 +112,11 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
+      - name: Render centralized config artifacts
+        run: bash scripts/render-config.sh
+
       - name: Terraform init (dev)
-        run: terraform -chdir=platform/terraform/envs/dev init -input=false
+        run: terraform -chdir=platform/terraform/envs/dev init -input=false -backend-config=backend.hcl
 
       - name: Terraform plan (dev)
         id: plan
@@ -163,7 +171,7 @@ jobs:
   #                                  ecr:BatchCheckLayerAvailability +
   #                                  ecr:PutImage etc.
   #   Secret: ECR_REGISTRY       →  AWS account ECR registry
-  #                                  e.g. 123456789012.dkr.ecr.us-east-1.amazonaws.com
+  #                                  e.g. 123456789012.dkr.ecr.<aws-region>.amazonaws.com
   #
   docker-build-push:
     name: Docker Build and Push to ECR
@@ -183,6 +191,15 @@ jobs:
           # Fetch full history so we can push a commit back
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Load centralized config
+        shell: bash
+        run: |
+          set -a
+          source config/global.env
+          set +a
+          echo "AWS_REGION=${AWS_REGION}" >> "$GITHUB_ENV"
+          echo "ECR_REGISTRY_ALIAS=${ECR_REGISTRY_ALIAS}" >> "$GITHUB_ENV"
 
       - name: Resolve image tag (short SHA)
         id: meta

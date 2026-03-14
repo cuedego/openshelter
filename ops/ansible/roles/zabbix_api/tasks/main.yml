@@ -1,4 +1,98 @@
 ---
-- name: Placeholder for Zabbix API configuration tasks
-  ansible.builtin.debug:
-    msg: "Zabbix API role scaffold is ready."
+# ──────────────────────────────────────────────────────────────────────
+# 1. Retrieve Zabbix admin password from AWS Secrets Manager
+# ──────────────────────────────────────────────────────────────────────
+- name: Fetch Zabbix admin password from AWS Secrets Manager
+  ansible.builtin.set_fact:
+    zabbix_login_password: "{{ lookup('amazon.aws.aws_secret',
+      zabbix_secret_name,
+      region=aws_region,
+      on_missing='error') }}"
+  no_log: true
+
+# ──────────────────────────────────────────────────────────────────────
+# 2. Create host groups
+# ──────────────────────────────────────────────────────────────────────
+- name: Ensure OpenShelter host groups exist
+  community.zabbix.zabbix_group:
+    host_groups:
+      - "{{ zabbix_hostgroup_openshelter }}"
+      - "{{ zabbix_hostgroup_mqtt }}"
+      - "{{ zabbix_hostgroup_zabbix }}"
+    state: present
+
+# ──────────────────────────────────────────────────────────────────────
+# 3. Create MQTT host
+# ──────────────────────────────────────────────────────────────────────
+- name: Ensure MQTT host is registered in Zabbix
+  community.zabbix.zabbix_host:
+    host_name: "openshelter-mqtt-{{ openshelter_env }}"
+    visible_name: "OpenShelter MQTT ({{ openshelter_env }})"
+    host_groups:
+      - "{{ zabbix_hostgroup_openshelter }}"
+      - "{{ zabbix_hostgroup_mqtt }}"
+    link_templates:
+      - "{{ zabbix_template_linux }}"
+    interfaces:
+      - type: 1        # 1=agent
+        main: 1
+        useip: 0       # use DNS
+        dns: "{{ mqtt_service_host }}"
+        ip: ""
+        port: "{{ zabbix_agent_port }}"
+    status: enabled
+    state: present
+
+# ──────────────────────────────────────────────────────────────────────
+# 4. Create Zabbix server self-monitoring host
+# ──────────────────────────────────────────────────────────────────────
+- name: Ensure Zabbix web host is registered for self-monitoring
+  community.zabbix.zabbix_host:
+    host_name: "openshelter-zabbix-{{ openshelter_env }}"
+    visible_name: "OpenShelter Zabbix ({{ openshelter_env }})"
+    host_groups:
+      - "{{ zabbix_hostgroup_openshelter }}"
+      - "{{ zabbix_hostgroup_zabbix }}"
+    link_templates:
+      - "{{ zabbix_template_linux }}"
+      - "Zabbix server"
+    interfaces:
+      - type: 1
+        main: 1
+        useip: 0
+        dns: "{{ zabbix_web_host }}"
+        ip: ""
+        port: "{{ zabbix_agent_port }}"
+    status: enabled
+    state: present
+
+# ──────────────────────────────────────────────────────────────────────
+# 5. Configure trigger action (optional, gated by zabbix_configure_action)
+# ──────────────────────────────────────────────────────────────────────
+- name: Create OpenShelter alerting action
+  community.zabbix.zabbix_action:
+    name: "{{ zabbix_action_name }}"
+    event_source: "trigger"
+    status: enabled
+    esc_period: 60
+    conditions:
+      - type: "trigger_severity"
+        operator: ">="
+        value: "{{ zabbix_action_severity_min }}"
+      - type: "host_group"
+        operator: "="
+        value: "{{ zabbix_hostgroup_openshelter }}"
+    operations:
+      - type: send_message
+        send_to_groups:
+          - name: "Zabbix administrators"
+        message:
+          default_message: true
+    recovery_operations:
+      - type: send_message
+        send_to_groups:
+          - name: "Zabbix administrators"
+        message:
+          default_message: true
+    state: present
+  when: zabbix_configure_action | bool

@@ -12,7 +12,7 @@ zabbix:
   enabled: true
 
   image:
-    repository: "REPLACE_ME.dkr.ecr.us-east-1.amazonaws.com/openshelter/zabbix"
+    repository: "REPLACE_ME.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/openshelter/zabbix"
     tag: "0.1.0"
     pullPolicy: IfNotPresent
 
@@ -66,7 +66,7 @@ mqtt:
   username: openshelter
 
   image:
-    repository: "REPLACE_ME.dkr.ecr.us-east-1.amazonaws.com/openshelter/mqtt"
+    repository: "REPLACE_ME.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/openshelter/mqtt"
     tag: "0.1.0"
     pullPolicy: IfNotPresent
 
