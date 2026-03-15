@@ -168,6 +168,9 @@ jobs:
           terraform -chdir=platform/terraform/envs/dev plan \
             -input=false \
             -no-color \
+            -var="region=${AWS_REGION}" \
+            -var="environment=dev" \
+            -var="vpc_cidr=10.255.250.0/24" \
             -var="rds_password=REDACTED" \
             -var="zabbix_admin_password=REDACTED" \
             -var="mqtt_password=REDACTED" \

@@ -14,11 +14,12 @@ resource "aws_iam_openid_connect_provider" "github" {
   tags = var.tags
 }
 
-# ── IAM role: terraform-plan (pull-request scope) ──────────────────────────────
+# ── IAM role: terraform-plan (pull-request + environment scope) ────────────────
 #
-# Trusted only when the workflow is triggered by a pull_request event on the
-# configured repository. The subject claim looks like:
+# Trusted for internal pull_request runs and for runs attached to the configured
+# GitHub Environment. Common subject claims:
 #   repo:<org>/<repo>:pull_request
+#   repo:<org>/<repo>:environment:<env>
 
 resource "aws_iam_role" "terraform_plan" {
   name = var.tf_plan_role_name
@@ -32,7 +33,12 @@ resource "aws_iam_role" "terraform_plan" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:pull_request"
+        }
+        StringLike = {
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:${var.github_org}/${var.github_repo}:pull_request",
+            "repo:${var.github_org}/${var.github_repo}:environment:${var.tf_plan_environment_name}",
+          ]
         }
       }
     }]
@@ -82,10 +88,12 @@ resource "aws_iam_role_policy" "terraform_plan_state" {
   })
 }
 
-# ── IAM role: ecr-push (main branch only) ──────────────────────────────────────
+# ── IAM role: ecr-push (main branch + environment scope) ───────────────────────
 #
-# Trusted only when the workflow runs on the main branch.
-# Subject claim: repo:<org>/<repo>:ref:refs/heads/main
+# Trusted when the workflow runs on main and when attached to the configured
+# GitHub Environment. Common subject claims:
+#   repo:<org>/<repo>:ref:refs/heads/main
+#   repo:<org>/<repo>:environment:<env>
 
 resource "aws_iam_role" "ecr_push" {
   name = var.ecr_push_role_name
@@ -99,7 +107,12 @@ resource "aws_iam_role" "ecr_push" {
       Condition = {
         StringEquals = {
           "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
-          "token.actions.githubusercontent.com:sub" = "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main"
+        }
+        StringLike = {
+          "token.actions.githubusercontent.com:sub" = [
+            "repo:${var.github_org}/${var.github_repo}:ref:refs/heads/main",
+            "repo:${var.github_org}/${var.github_repo}:environment:${var.ecr_push_environment_name}",
+          ]
         }
       }
     }]

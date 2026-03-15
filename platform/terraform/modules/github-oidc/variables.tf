@@ -14,10 +14,22 @@ variable "tf_plan_role_name" {
   default     = "openshelter-github-tf-plan"
 }
 
+variable "tf_plan_environment_name" {
+  type        = string
+  description = "GitHub Environment name used by the terraform-plan job"
+  default     = "dev"
+}
+
 variable "ecr_push_role_name" {
   type        = string
   description = "Name of the IAM role assumed by the docker-build-push job"
   default     = "openshelter-github-ecr-push"
+}
+
+variable "ecr_push_environment_name" {
+  type        = string
+  description = "GitHub Environment name used by the docker-build-push job"
+  default     = "prod"
 }
 
 variable "state_bucket_name" {
