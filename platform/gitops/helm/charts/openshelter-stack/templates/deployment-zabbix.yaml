@@ -10,6 +10,8 @@ metadata:
     app.kubernetes.io/component: server
 spec:
   replicas: {{ .Values.zabbix.replicaCount }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "openshelter.zabbix.selectorLabels" . | nindent 6 }}
