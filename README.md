@@ -139,7 +139,8 @@ flowchart TB
 6. On the first environment apply only, provide the three bootstrap secrets explicitly (`rds_password`, `zabbix_admin_password`, `mqtt_password`). After the secrets exist in AWS Secrets Manager, normal `plan`/`apply` runs can omit them and Terraform will reuse the current stored values instead of rotating them.
 7. Plan Terraform for one environment (`make terraform-env-plan ENV=dev`).
 8. Validate charts and checks (`make validate` and `make config-check`).
-9. Bootstrap ArgoCD objects (`make argocd-bootstrap ENV=dev`).
+9. Bootstrap ArgoCD objects (`make argocd-bootstrap ENV=dev ESO_IRSA_ROLE_ARN=<arn> ALB_CONTROLLER_IRSA_ROLE_ARN=<arn>`).
+10. For full end-to-end automation per environment, run `make bootstrap-e2e ENV=<dev|stg|prod> FIRST_APPLY=<true|false>`.
 
 ### Secret Rotation Safety
 - Default behavior: no password rotation on routine Terraform runs.
@@ -153,6 +154,11 @@ flowchart TB
 - Helm linting
 - Ansible playbook syntax validation
 - Config consistency check for legacy region literals (`make config-check`)
+
+## Environment-Scoped Bootstrap
+- Default cluster bootstrap applies only the target environment application (`openshelter-<env>`), reducing cross-environment blast radius.
+- Use `APP_SCOPE=root` only when intentionally reconciling all children from `platform/gitops/argocd/apps/children`.
+- For `stg` and `prod`, ingress is expected to be `internet-facing` during the current public-access phase.
 
 ## GitHub Actions Configuration Contract
 - Repository/Environment Variables (`vars`):

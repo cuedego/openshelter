@@ -26,7 +26,7 @@ ZABBIX_URL ?= http://localhost:8080/api_jsonrpc.php
 .PHONY: fmt validate \
 	terraform-bootstrap terraform-dev-plan terraform-env-plan \
         helm-lint ansible-lint ansible-syntax \
-        eks-kubeconfig cluster-bootstrap install-argocd install-eso argocd-bootstrap \
+        eks-kubeconfig cluster-bootstrap bootstrap-e2e install-argocd install-eso argocd-bootstrap \
 	ecr-login docker-build docker-push docker-build-push \
 	config-check show-config render-config bootstrap-linux
 
@@ -120,16 +120,24 @@ install-eso:
 	@SKIP_ARGOCD=true bash scripts/argocd-bootstrap.sh
 
 ## Full bootstrap: ArgoCD + ESO + ClusterSecretStore + App-of-Apps.
-## Usage: make cluster-bootstrap ENV=dev ESO_IRSA_ROLE_ARN=arn:... ALB_CONTROLLER_IRSA_ROLE_ARN=arn:...
+## Usage: make cluster-bootstrap ENV=dev ESO_IRSA_ROLE_ARN=arn:... ALB_CONTROLLER_IRSA_ROLE_ARN=arn:... [APP_SCOPE=env|root]
 cluster-bootstrap:
 	@ENV=$(ENV) AWS_REGION=$(AWS_REGION) \
 	 CLUSTER_NAME=$(CLUSTER_NAME) \
 	 ESO_IRSA_ROLE_ARN=$(ESO_IRSA_ROLE_ARN) \
 	 ALB_CONTROLLER_IRSA_ROLE_ARN=$(ALB_CONTROLLER_IRSA_ROLE_ARN) \
+	 APP_SCOPE=$${APP_SCOPE:-env} \
 	 bash scripts/argocd-bootstrap.sh
 
 ## Alias kept for backward compatibility
 argocd-bootstrap: cluster-bootstrap
+
+## End-to-end bootstrap: render-config + terraform apply + kubeconfig + env-scoped argocd bootstrap + health checks
+## Usage:
+##   make bootstrap-e2e ENV=stg FIRST_APPLY=true
+##   make bootstrap-e2e ENV=prod FIRST_APPLY=false
+bootstrap-e2e:
+	@ENV=$(ENV) FIRST_APPLY=$${FIRST_APPLY:-false} bash scripts/bootstrap-e2e.sh
 
 ## ──────────────────────────────────────────────────────────────────────
 ## Docker targets — require Docker daemon and AWS CLI configured locally
