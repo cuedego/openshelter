@@ -136,9 +136,16 @@ flowchart TB
 3. Run Terraform backend bootstrap in `platform/terraform/bootstrap`.
 4. Inspect loaded config (`make show-config ENV=dev`).
 5. Render environment artifacts from central config (`make render-config`) — this generates `backend.hcl` per Terraform environment and updates environment Helm values with `RDS_HOST`.
-6. Plan Terraform for one environment (`make terraform-env-plan ENV=dev`).
-7. Validate charts and checks (`make validate` and `make config-check`).
-8. Bootstrap ArgoCD objects (`make argocd-bootstrap ENV=dev`).
+6. On the first environment apply only, provide the three bootstrap secrets explicitly (`rds_password`, `zabbix_admin_password`, `mqtt_password`). After the secrets exist in AWS Secrets Manager, normal `plan`/`apply` runs can omit them and Terraform will reuse the current stored values instead of rotating them.
+7. Plan Terraform for one environment (`make terraform-env-plan ENV=dev`).
+8. Validate charts and checks (`make validate` and `make config-check`).
+9. Bootstrap ArgoCD objects (`make argocd-bootstrap ENV=dev`).
+
+### Secret Rotation Safety
+- Default behavior: no password rotation on routine Terraform runs.
+- First apply for a brand-new environment: pass the three secret variables explicitly.
+- Routine applies for an existing environment: omit those variables so Terraform reuses the current values from AWS Secrets Manager.
+- Intentional rotation: first update the target secret values in AWS Secrets Manager, then run Terraform for the environment so infrastructure converges to the new values.
 
 ## Quality Gates
 - English-only repository policy check

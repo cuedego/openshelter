@@ -31,7 +31,7 @@ module "rds" {
   identifier     = "${local.name_prefix}-rds"
   db_name        = "openshelter"
   username       = "openshelter_admin"
-  password       = var.rds_password
+  password       = module.secrets.effective_secret_values["rds/password"]
   instance_class = "db.t3.medium"
   vpc_id         = module.network.vpc_id
   vpc_cidr       = var.vpc_cidr

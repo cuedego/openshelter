@@ -7,3 +7,9 @@ output "secret_names" {
   description = "Map of secret key to full AWS secret name"
   value       = { for k, v in aws_secretsmanager_secret.this : k => v.name }
 }
+
+output "effective_secret_values" {
+  description = "Map of secret key to the effective plaintext value used by this module"
+  value       = local.effective_secret_values
+  sensitive   = true
+}

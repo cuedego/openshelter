@@ -171,9 +171,6 @@ jobs:
             -var="region=${AWS_REGION}" \
             -var="environment=dev" \
             -var="vpc_cidr=10.255.250.0/24" \
-            -var="rds_password=REDACTED" \
-            -var="zabbix_admin_password=REDACTED" \
-            -var="mqtt_password=REDACTED" \
             2>&1 | tee /tmp/plan.txt
           echo "exitcode=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
         continue-on-error: true
