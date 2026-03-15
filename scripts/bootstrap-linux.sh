@@ -336,9 +336,14 @@ Next steps:
    export AWS_PROFILE=<your-profile>
 
 3) Fill central config values:
-   edit config/global.env
+  edit config/global.env
 
-4) Render config and run plan:
+4) Set local-only account identifier (not versioned):
+  cat > config/local.env <<'EOF'
+  AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+  EOF
+
+5) Render config and run plan:
    make render-config
    make terraform-env-plan ENV=dev
 

@@ -15,6 +15,7 @@ crash.log
 # Env files
 .env
 .env.*
+config/local.env
 
 # OS/Editor
 .DS_Store

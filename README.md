@@ -129,7 +129,8 @@ flowchart TB
 ## Quick start
 0. Prepare local tooling (Linux): `make bootstrap-linux` (or `SKIP_DOCKER=true make bootstrap-linux` if Docker is managed externally).
 1. Set central configuration values in `config/global.env` and `config/env/{dev,stg,prod}.env`.
-	- Required in `config/global.env`: `AWS_REGION`, `AWS_ACCOUNT_ID`, `TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `TF_STATE_KEY_PREFIX`.
+	- Versioned defaults in `config/global.env`: `AWS_REGION`, `TF_STATE_KEY_PREFIX`, chart versions, repository metadata.
+	- Local-only overrides (not versioned): create `config/local.env` for `AWS_ACCOUNT_ID`, `TF_STATE_BUCKET`, `TF_LOCK_TABLE` (and optional `TF_STATE_KEY_PREFIX`).
 	- Required in each `config/env/*.env`: `ENV`, `CLUSTER_NAME`, `VPC_CIDR`, `RDS_HOST` (and optional `TF_STATE_KEY`).
 2. Configure AWS credentials with least-privilege permissions.
 3. Run Terraform backend bootstrap in `platform/terraform/bootstrap`.
@@ -145,6 +146,56 @@ flowchart TB
 - Helm linting
 - Ansible playbook syntax validation
 - Config consistency check for legacy region literals (`make config-check`)
+
+## GitHub Actions Configuration Contract
+- Repository/Environment Variables (`vars`):
+	- `AWS_REGION`
+	- `AWS_ACCOUNT_ID`
+	- `TF_STATE_BUCKET`
+	- `TF_LOCK_TABLE`
+	- `TF_STATE_KEY_PREFIX`
+- Repository/Environment Secrets (`secrets`):
+	- `TF_PLAN_ROLE_ARN`
+	- `ECR_PUSH_ROLE_ARN`
+- Derived in CI (no secret needed):
+	- `ECR_REGISTRY = ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com`
+- Recommendation: use GitHub Environments (`dev`, `stg`, `prod`) with approvals/protection rules for production values.
+
+### GitHub Hardening Checklist
+- Create GitHub Environments used by workflow jobs:
+	- `dev` (used by `terraform-plan`)
+	- `prod` (used by `docker-build-push`)
+- Restrict who can deploy to `prod` environment (required reviewers / admins only).
+- Configure environment-scoped vars/secrets (prefer over repository-wide values for sensitive environments).
+- Enable branch protection for `main`:
+	- Require pull request before merge
+	- Require status checks to pass (`language-check`, `terraform-check`, `helm-lint`, `ansible-syntax`)
+	- Restrict who can push directly to `main`
+- Protect `.github/workflows/*` changes via CODEOWNERS/review policy.
+
+### CI Rollout Checklist (Item 6)
+1. Configure Variables (`Settings` -> `Secrets and variables` -> `Actions` -> `Variables`):
+	- `AWS_REGION`
+	- `AWS_ACCOUNT_ID`
+	- `TF_STATE_BUCKET`
+	- `TF_LOCK_TABLE`
+	- `TF_STATE_KEY_PREFIX`
+2. Configure Secrets (`Settings` -> `Secrets and variables` -> `Actions` -> `Secrets`):
+	- `TF_PLAN_ROLE_ARN`
+	- `ECR_PUSH_ROLE_ARN`
+3. Prefer Environment-level values for `dev` and `prod` (instead of only repository-level).
+4. Validate PR path:
+	- Open a PR from an internal branch.
+	- Confirm `terraform-plan` runs in `dev` environment and posts plan comment.
+5. Validate main path:
+	- Merge PR into `main`.
+	- Confirm `docker-build-push` runs in `prod` environment, builds/pushes images, and updates Helm tags.
+6. Validate fail-fast behavior:
+	- Temporarily remove one required variable in a non-production test repo/environment.
+	- Confirm workflow fails early with `Missing required CI configuration`.
+7. Keep auditability:
+	- Use `workflow_dispatch` for controlled/manual execution.
+	- Record first successful run URLs in release/change notes.
 
 ## ADRs and Operational Docs
 - Architecture decisions are tracked in `docs/adr`.

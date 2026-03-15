@@ -18,6 +18,12 @@ if [[ -f "$REPO_ROOT/config/global.env" ]]; then
   set +a
 fi
 
+if [[ -f "$REPO_ROOT/config/local.env" ]]; then
+  set -a
+  source "$REPO_ROOT/config/local.env"
+  set +a
+fi
+
 if [[ -f "$REPO_ROOT/config/env/${ENV}.env" ]]; then
   set -a
   source "$REPO_ROOT/config/env/${ENV}.env"

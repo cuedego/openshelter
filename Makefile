@@ -4,10 +4,14 @@ ENV ?= dev
 
 # Central config (single source of truth)
 -include config/global.env
+-include config/local.env
 -include config/env/$(ENV).env
 
 AWS_REGION   ?=
-AWS_ACCOUNT_ID ?= # Set to your 12-digit AWS account ID in config/global.env
+AWS_ACCOUNT_ID ?= # Set locally in config/local.env or export in shell
+ifeq ($(strip $(AWS_ACCOUNT_ID)),)
+AWS_ACCOUNT_ID := $(shell aws sts get-caller-identity --query Account --output text 2>/dev/null)
+endif
 ECR_REGISTRY ?= $(AWS_ACCOUNT_ID).dkr.ecr.$(AWS_REGION).amazonaws.com
 IMAGE_TAG    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "local")
 

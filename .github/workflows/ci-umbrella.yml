@@ -1,6 +1,7 @@
 name: CI Umbrella
 
 on:
+  workflow_dispatch:
   pull_request:
   push:
     branches:
@@ -9,6 +10,27 @@ on:
 # Default: read-only. Jobs that need extra permissions declare them explicitly.
 permissions:
   contents: read
+
+# CI configuration contract (GitHub Actions)
+#
+# Repository/Environment Variables (vars):
+#   AWS_REGION
+#   AWS_ACCOUNT_ID
+#   TF_STATE_BUCKET
+#   TF_LOCK_TABLE
+#   TF_STATE_KEY_PREFIX
+#
+# Repository/Environment Secrets:
+#   TF_PLAN_ROLE_ARN
+#   ECR_PUSH_ROLE_ARN
+#
+# This workflow is designed to rely only on GitHub vars/secrets in CI.
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
+  TF_STATE_KEY_PREFIX: ${{ vars.TF_STATE_KEY_PREFIX }}
 
 jobs:
   # ── Static analysis (run on every event) ────────────────────────────────────
@@ -83,8 +105,9 @@ jobs:
   #
   terraform-plan:
     name: Terraform Plan (dev)
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork == false
     runs-on: ubuntu-latest
+    environment: dev
     needs: [terraform-check]
     permissions:
       id-token: write       # required for OIDC token exchange
@@ -94,14 +117,27 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Load centralized config
+      - name: Validate required CI vars/secrets
         shell: bash
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
+          TF_STATE_KEY_PREFIX: ${{ vars.TF_STATE_KEY_PREFIX }}
+          TF_PLAN_ROLE_ARN: ${{ secrets.TF_PLAN_ROLE_ARN }}
         run: |
-          set -a
-          source config/global.env
-          set +a
-          echo "AWS_REGION=${AWS_REGION}" >> "$GITHUB_ENV"
-          echo "ECR_REGISTRY_ALIAS=${ECR_REGISTRY_ALIAS}" >> "$GITHUB_ENV"
+          missing=0
+          required=(AWS_REGION TF_STATE_BUCKET TF_LOCK_TABLE TF_STATE_KEY_PREFIX TF_PLAN_ROLE_ARN)
+          for var in "${required[@]}"; do
+            if [[ -z "${!var}" ]]; then
+              echo "::error title=Missing required CI configuration::${var} is not set"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            echo "CI configuration validation failed. Configure required vars/secrets in GitHub Actions settings."
+            exit 1
+          fi
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -112,8 +148,16 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Render centralized config artifacts
-        run: bash scripts/render-config.sh
+      - name: Render backend config (CI vars)
+        shell: bash
+        run: |
+          cat > platform/terraform/envs/dev/backend.hcl <<EOF
+          bucket         = "${TF_STATE_BUCKET}"
+          key            = "${TF_STATE_KEY_PREFIX}/dev/terraform.tfstate"
+          region         = "${AWS_REGION}"
+          dynamodb_table = "${TF_LOCK_TABLE}"
+          encrypt        = true
+          EOF
 
       - name: Terraform init (dev)
         run: terraform -chdir=platform/terraform/envs/dev init -input=false -backend-config=backend.hcl
@@ -170,13 +214,18 @@ jobs:
   #   Secret: ECR_PUSH_ROLE_ARN  →  IAM role with ecr:GetAuthorizationToken +
   #                                  ecr:BatchCheckLayerAvailability +
   #                                  ecr:PutImage etc.
-  #   Secret: ECR_REGISTRY       →  AWS account ECR registry
-  #                                  e.g. 123456789012.dkr.ecr.<aws-region>.amazonaws.com
+  #   Vars: AWS_ACCOUNT_ID + AWS_REGION
+  #                                  used to derive ECR registry
+  #                                  e.g. 123456789012.dkr.ecr.eu-central-1.amazonaws.com
   #
   docker-build-push:
     name: Docker Build and Push to ECR
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    environment: prod
+    concurrency:
+      group: docker-build-push-main
+      cancel-in-progress: false
     needs: [language-check, terraform-check, helm-lint, ansible-syntax]
     permissions:
       id-token: write
@@ -192,18 +241,34 @@ jobs:
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Load centralized config
+      - name: Validate required CI vars/secrets
         shell: bash
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+          ECR_PUSH_ROLE_ARN: ${{ secrets.ECR_PUSH_ROLE_ARN }}
         run: |
-          set -a
-          source config/global.env
-          set +a
-          echo "AWS_REGION=${AWS_REGION}" >> "$GITHUB_ENV"
-          echo "ECR_REGISTRY_ALIAS=${ECR_REGISTRY_ALIAS}" >> "$GITHUB_ENV"
+          missing=0
+          required=(AWS_REGION AWS_ACCOUNT_ID ECR_PUSH_ROLE_ARN)
+          for var in "${required[@]}"; do
+            if [[ -z "${!var}" ]]; then
+              echo "::error title=Missing required CI configuration::${var} is not set"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            echo "CI configuration validation failed. Configure required vars/secrets in GitHub Actions settings."
+            exit 1
+          fi
 
       - name: Resolve image tag (short SHA)
         id: meta
         run: echo "tag=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
+
+      - name: Derive ECR registry from vars
+        shell: bash
+        run: |
+          echo "ECR_REGISTRY=${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com" >> "$GITHUB_ENV"
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -221,8 +286,8 @@ jobs:
           context: apps/zabbix
           push: true
           tags: |
-            ${{ secrets.ECR_REGISTRY }}/openshelter/zabbix:${{ steps.meta.outputs.tag }}
-            ${{ secrets.ECR_REGISTRY }}/openshelter/zabbix:latest
+            ${{ env.ECR_REGISTRY }}/openshelter/zabbix:${{ steps.meta.outputs.tag }}
+            ${{ env.ECR_REGISTRY }}/openshelter/zabbix:latest
 
       - name: Build and push — mqtt
         uses: docker/build-push-action@v5
@@ -230,8 +295,8 @@ jobs:
           context: apps/mqtt
           push: true
           tags: |
-            ${{ secrets.ECR_REGISTRY }}/openshelter/mqtt:${{ steps.meta.outputs.tag }}
-            ${{ secrets.ECR_REGISTRY }}/openshelter/mqtt:latest
+            ${{ env.ECR_REGISTRY }}/openshelter/mqtt:${{ steps.meta.outputs.tag }}
+            ${{ env.ECR_REGISTRY }}/openshelter/mqtt:latest
 
       # Update image tags in all environment values files and commit back
       - name: Install yq
@@ -243,7 +308,7 @@ jobs:
       - name: Update image tags in Helm values
         env:
           TAG: ${{ steps.meta.outputs.tag }}
-          REGISTRY: ${{ secrets.ECR_REGISTRY }}
+          REGISTRY: ${{ env.ECR_REGISTRY }}
         run: |
           for env in dev stg prod; do
             VALUES="platform/gitops/helm/values/${env}/openshelter-stack.yaml"
