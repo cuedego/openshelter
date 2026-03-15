@@ -49,8 +49,3 @@ variable "cluster_admin_principal_arns" {
   default     = []
 }
 
-variable "authentication_mode" {
-  type        = string
-  description = "EKS cluster authentication mode"
-  default     = "API_AND_CONFIG_MAP"
-}
