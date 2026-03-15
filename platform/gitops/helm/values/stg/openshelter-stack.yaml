@@ -6,7 +6,7 @@ zabbix:
     repository: "052081665529.dkr.ecr.eu-central-1.amazonaws.com/openshelter/zabbix"
     tag: "dd71f43"
   db:
-    host: "REPLACE_ME.rds.amazonaws.com"
+    host: "openshelter-stg-rds.cjws62ie8i3t.eu-central-1.rds.amazonaws.com"
   ingress:
     enabled: true
     annotations:

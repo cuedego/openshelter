@@ -16,6 +16,12 @@ variable "secret_values" {
   sensitive   = true
 }
 
+variable "use_existing_secret_values" {
+  type        = bool
+  description = "When true, read current secret values from AWS Secrets Manager instead of using secret_values input."
+  default     = true
+}
+
 variable "recovery_window_in_days" {
   type        = number
   description = "Number of days before a deleted secret is purged"

@@ -6,7 +6,7 @@ locals {
 
   effective_secret_values = {
     for key in keys(var.secret_configs) :
-    key => coalesce(try(var.secret_values[key], null), try(local.secret_values_from_aws[key], null))
+    key => var.use_existing_secret_values ? try(local.secret_values_from_aws[key], null) : try(var.secret_values[key], null)
   }
 }
 
@@ -21,11 +21,7 @@ resource "aws_secretsmanager_secret" "this" {
 }
 
 data "aws_secretsmanager_secret_version" "current" {
-  for_each = {
-    for key in keys(var.secret_configs) :
-    key => key
-    if try(var.secret_values[key], null) == null
-  }
+  for_each = var.use_existing_secret_values ? var.secret_configs : {}
 
   secret_id = aws_secretsmanager_secret.this[each.key].id
 }
