@@ -4,7 +4,7 @@ zabbix:
   enabled: true
   image:
     repository: "052081665529.dkr.ecr.eu-central-1.amazonaws.com/openshelter/zabbix"
-    tag: "b6469a6"
+    tag: "4b158f6"
   db:
     host: "openshelter-dev-rds.cjws62ie8i3t.eu-central-1.rds.amazonaws.com"
   ingress:
@@ -18,7 +18,7 @@ mqtt:
   enabled: true
   image:
     repository: "052081665529.dkr.ecr.eu-central-1.amazonaws.com/openshelter/mqtt"
-    tag: "b6469a6"
+    tag: "4b158f6"
   secrets:
     password:
       remoteRef: "openshelter-dev/mqtt/password"

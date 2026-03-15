@@ -5,7 +5,7 @@ zabbix:
   replicaCount: 2
   image:
     repository: "052081665529.dkr.ecr.eu-central-1.amazonaws.com/openshelter/zabbix"
-    tag: "b6469a6"
+    tag: "4b158f6"
   resources:
     requests:
       cpu: 500m
@@ -31,7 +31,7 @@ mqtt:
   replicaCount: 2
   image:
     repository: "052081665529.dkr.ecr.eu-central-1.amazonaws.com/openshelter/mqtt"
-    tag: "b6469a6"
+    tag: "4b158f6"
   resources:
     requests:
       cpu: 200m
