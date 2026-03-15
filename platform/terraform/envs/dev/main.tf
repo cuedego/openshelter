@@ -42,8 +42,9 @@ module "ecr" {
 }
 
 module "secrets" {
-  source      = "../../modules/secrets"
-  name_prefix = local.name_prefix
+  source                     = "../../modules/secrets"
+  name_prefix                = local.name_prefix
+  use_existing_secret_values = var.use_existing_secret_values
   secret_configs = {
     "rds/password" = {
       description = "RDS master password for openshelter"

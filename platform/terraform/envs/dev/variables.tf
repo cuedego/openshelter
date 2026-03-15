@@ -32,3 +32,9 @@ variable "mqtt_password" {
   default     = null
   nullable    = true
 }
+
+variable "use_existing_secret_values" {
+  type        = bool
+  description = "Use existing AWS Secrets Manager values during routine plan/apply operations"
+  default     = true
+}

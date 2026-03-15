@@ -40,15 +40,17 @@ module "rds" {
 }
 
 module "ecr" {
-  source           = "../../modules/ecr"
-  repository_names = ["openshelter/zabbix", "openshelter/mqtt"]
-  tags             = local.common_tags
+  source              = "../../modules/ecr"
+  repository_names    = ["openshelter/zabbix", "openshelter/mqtt"]
+  create_repositories = false
+  tags                = local.common_tags
 }
 
 module "secrets" {
-  source                  = "../../modules/secrets"
-  name_prefix             = local.name_prefix
-  recovery_window_in_days = 30
+  source                     = "../../modules/secrets"
+  name_prefix                = local.name_prefix
+  use_existing_secret_values = var.use_existing_secret_values
+  recovery_window_in_days    = 30
   secret_configs = {
     "rds/password" = {
       description = "RDS master password for openshelter"

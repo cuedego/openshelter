@@ -84,6 +84,15 @@ resource "aws_iam_role_policy" "terraform_plan_state" {
         ]
         Resource = "arn:aws:dynamodb:*:*:table/${var.lock_table_name}"
       },
+      {
+        Sid    = "SecretsManagerReadDev"
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue",
+          "secretsmanager:DescribeSecret",
+        ]
+        Resource = "arn:aws:secretsmanager:*:*:secret:openshelter-${var.tf_plan_environment_name}/*"
+      },
     ]
   })
 }
