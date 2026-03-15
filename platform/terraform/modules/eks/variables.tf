@@ -48,3 +48,9 @@ variable "cluster_admin_principal_arns" {
   description = "IAM principal ARNs granted cluster-admin access through EKS access entries"
   default     = []
 }
+
+variable "authentication_mode" {
+  type        = string
+  description = "EKS cluster authentication mode"
+  default     = "API_AND_CONFIG_MAP"
+}
