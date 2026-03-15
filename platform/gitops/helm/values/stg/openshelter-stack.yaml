@@ -10,7 +10,7 @@ zabbix:
   ingress:
     enabled: true
     annotations:
-      alb.ingress.kubernetes.io/scheme: internal
+      alb.ingress.kubernetes.io/scheme: internet-facing
   secrets:
     rdsPassword:
       remoteRef: "openshelter-stg/rds/password"
