@@ -1,0 +1,54 @@
+{{- if and .Values.zabbix.enabled .Values.zabbix.ingress.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Release.Name }}-zabbix-web
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "openshelter.labels" . | nindent 4 }}
+    {{- include "openshelter.zabbix.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+  {{- with .Values.zabbix.ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .Values.zabbix.ingress.className }}
+  ingressClassName: {{ .Values.zabbix.ingress.className | quote }}
+  {{- end }}
+  {{- if .Values.zabbix.ingress.tls }}
+  tls:
+    {{- range .Values.zabbix.ingress.tls }}
+    - hosts:
+        {{- range .hosts }}
+        - {{ . | quote }}
+        {{- end }}
+      {{- if .secretName }}
+      secretName: {{ .secretName | quote }}
+      {{- end }}
+    {{- end }}
+  {{- end }}
+  rules:
+    {{- if .Values.zabbix.ingress.host }}
+    - host: {{ .Values.zabbix.ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ .Values.zabbix.ingress.path | default "/" }}
+            pathType: {{ .Values.zabbix.ingress.pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ .Release.Name }}-zabbix-web
+                port:
+                  number: {{ .Values.zabbix.web.service.port }}
+    {{- else }}
+    - http:
+        paths:
+          - path: {{ .Values.zabbix.ingress.path | default "/" }}
+            pathType: {{ .Values.zabbix.ingress.pathType | default "Prefix" }}
+            backend:
+              service:
+                name: {{ .Release.Name }}-zabbix-web
+                port:
+                  number: {{ .Values.zabbix.web.service.port }}
+    {{- end }}
+{{- end }}

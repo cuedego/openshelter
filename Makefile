@@ -18,6 +18,7 @@ IMAGE_TAG    ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "local")
 # Cluster bootstrap knobs
 CLUSTER_NAME   ?= openshelter-$(ENV)
 ESO_IRSA_ROLE_ARN ?= # Set after applying bootstrap Terraform
+ALB_CONTROLLER_IRSA_ROLE_ARN ?= # Set after applying env Terraform: terraform output -raw alb_controller_irsa_role_arn
 
 # Ansible knobs
 ZABBIX_URL ?= http://localhost:8080/api_jsonrpc.php
@@ -119,10 +120,12 @@ install-eso:
 	@SKIP_ARGOCD=true bash scripts/argocd-bootstrap.sh
 
 ## Full bootstrap: ArgoCD + ESO + ClusterSecretStore + App-of-Apps.
-## Usage: make cluster-bootstrap ENV=dev ESO_IRSA_ROLE_ARN=arn:aws:iam::...
+## Usage: make cluster-bootstrap ENV=dev ESO_IRSA_ROLE_ARN=arn:... ALB_CONTROLLER_IRSA_ROLE_ARN=arn:...
 cluster-bootstrap:
 	@ENV=$(ENV) AWS_REGION=$(AWS_REGION) \
+	 CLUSTER_NAME=$(CLUSTER_NAME) \
 	 ESO_IRSA_ROLE_ARN=$(ESO_IRSA_ROLE_ARN) \
+	 ALB_CONTROLLER_IRSA_ROLE_ARN=$(ALB_CONTROLLER_IRSA_ROLE_ARN) \
 	 bash scripts/argocd-bootstrap.sh
 
 ## Alias kept for backward compatibility

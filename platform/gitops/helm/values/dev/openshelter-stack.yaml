@@ -8,6 +8,8 @@ zabbix:
     tag: "0.1.0"
   db:
     host: "REPLACE_ME.rds.amazonaws.com"
+  ingress:
+    enabled: true
   secrets:
     rdsPassword:
       remoteRef: "openshelter-dev/rds/password"
