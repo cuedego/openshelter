@@ -29,7 +29,7 @@ spec:
           args:
             - |
               mosquitto_passwd -b -c /mosquitto/config/passwords.txt "$MQTT_USERNAME" "$MQTT_PASSWORD"
-              chmod 640 /mosquitto/config/passwords.txt
+              chmod 644 /mosquitto/config/passwords.txt
               exec mosquitto -c /mosquitto/config/mosquitto.conf
           ports:
             - name: mqtt
