@@ -167,6 +167,7 @@ jobs:
         run: |
           terraform -chdir=platform/terraform/envs/dev plan \
             -input=false \
+            -lock=false \
             -no-color \
             -var="region=${AWS_REGION}" \
             -var="environment=dev" \
