@@ -32,6 +32,18 @@ variable "ecr_push_environment_name" {
   default     = "prod"
 }
 
+variable "bootstrap_role_name" {
+  type        = string
+  description = "Name of the IAM role assumed by the manual bootstrap workflow"
+  default     = "openshelter-github-bootstrap"
+}
+
+variable "bootstrap_environment_names" {
+  type        = list(string)
+  description = "GitHub Environment names allowed to assume the manual bootstrap role"
+  default     = ["dev", "stg", "prod"]
+}
+
 variable "state_bucket_name" {
   type        = string
   description = "Terraform state S3 bucket name — added to the plan role policy"

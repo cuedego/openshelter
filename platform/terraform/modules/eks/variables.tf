@@ -42,3 +42,9 @@ variable "tags" {
   description = "Resource tags"
   default     = {}
 }
+
+variable "cluster_admin_principal_arns" {
+  type        = list(string)
+  description = "IAM principal ARNs granted cluster-admin access through EKS access entries"
+  default     = []
+}
