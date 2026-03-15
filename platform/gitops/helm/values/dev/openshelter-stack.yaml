@@ -1,11 +1,10 @@
 global:
   environment: dev
-
 zabbix:
   enabled: true
   image:
-    repository: "REPLACE_ME.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/openshelter/zabbix"
-    tag: "0.1.0"
+    repository: "052081665529.dkr.ecr.eu-central-1.amazonaws.com/openshelter/zabbix"
+    tag: "f9b8ab5"
   db:
     host: "REPLACE_ME.rds.amazonaws.com"
   ingress:
@@ -15,12 +14,11 @@ zabbix:
       remoteRef: "openshelter-dev/rds/password"
     adminPassword:
       remoteRef: "openshelter-dev/zabbix/admin-password"
-
 mqtt:
   enabled: true
   image:
-    repository: "REPLACE_ME.dkr.ecr.REPLACE_AWS_REGION.amazonaws.com/openshelter/mqtt"
-    tag: "0.1.0"
+    repository: "052081665529.dkr.ecr.eu-central-1.amazonaws.com/openshelter/mqtt"
+    tag: "f9b8ab5"
   secrets:
     password:
       remoteRef: "openshelter-dev/mqtt/password"
