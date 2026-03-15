@@ -23,6 +23,13 @@ spec:
         - name: mqtt
           image: "{{ .Values.mqtt.image.repository }}:{{ .Values.mqtt.image.tag }}"
           imagePullPolicy: {{ .Values.mqtt.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -ec
+          args:
+            - |
+              mosquitto_passwd -b -c /mosquitto/config/passwords.txt "$MQTT_USERNAME" "$MQTT_PASSWORD"
+              exec mosquitto -c /mosquitto/config/mosquitto.conf
           ports:
             - name: mqtt
               containerPort: 1883
