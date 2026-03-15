@@ -97,6 +97,7 @@ if [[ "$FIRST_APPLY" == "true" ]]; then
   ZABBIX_ADMIN_PASSWORD="${ZABBIX_ADMIN_PASSWORD:-$(generate_password 24)}"
   MQTT_PASSWORD="${MQTT_PASSWORD:-$(generate_password 24)}"
   TF_APPLY_ARGS+=(
+    -var="use_existing_secret_values=false"
     -var="rds_password=${RDS_PASSWORD}"
     -var="zabbix_admin_password=${ZABBIX_ADMIN_PASSWORD}"
     -var="mqtt_password=${MQTT_PASSWORD}"
