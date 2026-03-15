@@ -85,6 +85,16 @@ jobs:
           role-to-assume: ${{ secrets.BOOTSTRAP_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Render CI local config overrides
+        shell: bash
+        run: |
+          cat > config/local.env <<EOF
+          AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}
+          TF_STATE_BUCKET=${TF_STATE_BUCKET}
+          TF_LOCK_TABLE=${TF_LOCK_TABLE}
+          TF_STATE_KEY_PREFIX=${TF_STATE_KEY_PREFIX}
+          EOF
+
       - name: Run end-to-end bootstrap
         shell: bash
         env:
