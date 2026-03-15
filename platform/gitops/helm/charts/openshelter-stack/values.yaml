@@ -43,6 +43,29 @@ zabbix:
       type: ClusterIP
       port: 8080
 
+  # -- Ingress for the Zabbix web frontend.
+  # AWS Load Balancer Controller annotations are pre-configured.
+  # Set enabled: true and provide the className per environment.
+  ingress:
+    enabled: false
+    # "alb" (AWS Load Balancer Controller) or "nginx" (nginx-ingress)
+    className: "alb"
+    # Optional hostname. Leave empty to use ALB DNS name directly.
+    host: ""
+    path: "/"
+    pathType: Prefix
+    annotations:
+      # Route to individual pods (required for ALB)
+      alb.ingress.kubernetes.io/target-type: ip
+      # Scheme: internet-facing (public) or internal (VPC only)
+      alb.ingress.kubernetes.io/scheme: internet-facing
+      # Health check path and port
+      alb.ingress.kubernetes.io/healthcheck-path: /
+      alb.ingress.kubernetes.io/healthcheck-port: "8080"
+      # ALB listener port
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
+    tls: []
+
   db:
     host: "REPLACE_ME.rds.amazonaws.com"
     port: "5432"

@@ -41,6 +41,14 @@ ESO_CHART_VERSION="${ESO_CHART_VERSION:-0.10.3}"
 # terraform -chdir=platform/terraform/envs/${ENV} output -raw eso_irsa_role_arn
 ESO_IRSA_ROLE_ARN="${ESO_IRSA_ROLE_ARN:-}"
 
+# IRSA role ARN for the AWS Load Balancer Controller service account.
+# Obtain after applying env Terraform:
+# terraform -chdir=platform/terraform/envs/${ENV} output -raw alb_controller_irsa_role_arn
+ALB_CONTROLLER_IRSA_ROLE_ARN="${ALB_CONTROLLER_IRSA_ROLE_ARN:-}"
+
+ALB_CONTROLLER_CHART_VERSION="${ALB_CONTROLLER_CHART_VERSION:-1.8.1}"
+ALB_CONTROLLER_NAMESPACE="${ALB_CONTROLLER_NAMESPACE:-kube-system}"
+
 PROJECT_MANIFEST="$REPO_ROOT/platform/gitops/argocd/projects/openshelter-project.yaml"
 ROOT_APP_MANIFEST="$REPO_ROOT/platform/gitops/argocd/apps/root-app.yaml"
 CSS_MANIFEST="$REPO_ROOT/platform/gitops/argocd/bootstrap/cluster-secret-store.yaml"
@@ -128,22 +136,69 @@ else
 fi
 
 # ──────────────────────────────────────────────
-# Step 3 — Apply ClusterSecretStore
+# Step 3 — Install AWS Load Balancer Controller
+# ──────────────────────────────────────────────
+if [[ "${SKIP_ALB_CONTROLLER:-false}" != "true" ]]; then
+  echo ""
+  echo "──────────────────────────────────────────────"
+  echo "Step 3: Installing AWS Load Balancer Controller ${ALB_CONTROLLER_CHART_VERSION}"
+  echo "──────────────────────────────────────────────"
+
+  # cluster name is required for the controller to filter resources
+  CLUSTER_NAME="${CLUSTER_NAME:-$(kubectl config current-context)}"
+  AWS_REGION="${AWS_REGION}"
+
+  if [[ -z "$CLUSTER_NAME" || -z "$AWS_REGION" ]]; then
+    echo "ERROR: CLUSTER_NAME and AWS_REGION are required for ALB controller install."
+    exit 1
+  fi
+
+  helm repo add eks https://aws.github.io/eks-charts --force-update
+
+  ALB_SA_ARGS=(
+    "--set" "clusterName=${CLUSTER_NAME}"
+    "--set" "region=${AWS_REGION}"
+    "--set" "vpcId=$(kubectl get configmap -n kube-system aws-auth -o jsonpath='{.data.mapRoles}' 2>/dev/null | true; \
+      aws eks describe-cluster --name ${CLUSTER_NAME} --region ${AWS_REGION} \
+        --query 'cluster.resourcesVpcConfig.vpcId' --output text)"
+  )
+
+  if [[ -n "$ALB_CONTROLLER_IRSA_ROLE_ARN" ]]; then
+    ALB_SA_ARGS+=(
+      "--set" "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${ALB_CONTROLLER_IRSA_ROLE_ARN}"
+    )
+  else
+    echo "WARN: ALB_CONTROLLER_IRSA_ROLE_ARN not set — controller will lack AWS permissions."
+    echo "      Run: terraform -chdir=platform/terraform/envs/${ENV} output -raw alb_controller_irsa_role_arn"
+  fi
+
+  helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+    --namespace "$ALB_CONTROLLER_NAMESPACE" \
+    --version "$ALB_CONTROLLER_CHART_VERSION" \
+    "${ALB_SA_ARGS[@]}" \
+    --wait --timeout 5m
+  echo "AWS Load Balancer Controller installed."
+else
+  echo "Step 3: Skipping ALB controller install (SKIP_ALB_CONTROLLER=true)"
+fi
+
+# ──────────────────────────────────────────────
+# Step 4 — Apply ClusterSecretStore
 # ──────────────────────────────────────────────
 echo ""
 echo "──────────────────────────────────────────────"
-echo "Step 3: Applying ClusterSecretStore"
+echo "Step 4: Applying ClusterSecretStore"
 echo "──────────────────────────────────────────────"
 # Substitute region placeholder if needed
 sed "s|REPLACE_AWS_REGION|${AWS_REGION}|g" "$CSS_MANIFEST" | kubectl apply -f -
 echo "ClusterSecretStore applied."
 
 # ──────────────────────────────────────────────
-# Step 4 — Apply ArgoCD project + root app
+# Step 5 — Apply ArgoCD project + root app
 # ──────────────────────────────────────────────
 echo ""
 echo "──────────────────────────────────────────────"
-echo "Step 4: Applying ArgoCD project and root application"
+echo "Step 5: Applying ArgoCD project and root application"
 echo "──────────────────────────────────────────────"
 kubectl apply -f "$PROJECT_MANIFEST"
 kubectl apply -f "$ROOT_APP_MANIFEST"

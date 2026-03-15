@@ -76,3 +76,11 @@ module "irsa_eso" {
   secret_path_prefix = local.name_prefix
   tags               = local.common_tags
 }
+
+module "irsa_alb_controller" {
+  source            = "../../modules/irsa-alb-controller"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_url = module.eks.oidc_provider_url
+  role_name         = "${local.name_prefix}-alb-controller-irsa"
+  tags              = local.common_tags
+}

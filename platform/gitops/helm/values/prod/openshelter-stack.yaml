@@ -16,6 +16,12 @@ zabbix:
       memory: 2Gi
   db:
     host: "REPLACE_ME.rds.amazonaws.com"
+  ingress:
+    enabled: true
+    annotations:
+      alb.ingress.kubernetes.io/scheme: internal
+      alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+      alb.ingress.kubernetes.io/certificate-arn: "REPLACE_ACM_CERTIFICATE_ARN"
   secrets:
     rdsPassword:
       remoteRef: "openshelter-prod/rds/password"
