@@ -206,7 +206,7 @@ jobs:
             }
 
       - name: Fail if plan errored
-        if: steps.plan.outputs.exitcode != '0'
+        if: steps.plan.outcome == 'failure'
         run: exit 1
 
   # ── Docker build + ECR push — main branch only ──────────────────────────────
