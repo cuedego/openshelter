@@ -10,6 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 ENV="${ENV:-dev}"
+APP_SCOPE="${APP_SCOPE:-env}"
+ALLOW_CONTEXT_MISMATCH="${ALLOW_CONTEXT_MISMATCH:-false}"
 
 # Load centralized config (if present)
 if [[ -f "$REPO_ROOT/config/global.env" ]]; then
@@ -51,7 +53,9 @@ ALB_CONTROLLER_NAMESPACE="${ALB_CONTROLLER_NAMESPACE:-kube-system}"
 
 PROJECT_MANIFEST="$REPO_ROOT/platform/gitops/argocd/projects/openshelter-project.yaml"
 ROOT_APP_MANIFEST="$REPO_ROOT/platform/gitops/argocd/apps/root-app.yaml"
+ENV_APP_MANIFEST="$REPO_ROOT/platform/gitops/argocd/apps/children/openshelter-${ENV}.yaml"
 CSS_MANIFEST="$REPO_ROOT/platform/gitops/argocd/bootstrap/cluster-secret-store.yaml"
+VALUES_MANIFEST="$REPO_ROOT/platform/gitops/helm/values/${ENV}/openshelter-stack.yaml"
 
 # ──────────────────────────────────────────────
 # Pre-flight checks
@@ -68,20 +72,63 @@ if ! kubectl config current-context >/dev/null 2>&1; then
   exit 1
 fi
 
+CURRENT_CONTEXT="$(kubectl config current-context)"
+if [[ "$ALLOW_CONTEXT_MISMATCH" != "true" && "$CURRENT_CONTEXT" != "$ENV" ]]; then
+  echo "ERROR: Current context '$CURRENT_CONTEXT' does not match ENV='$ENV'."
+  echo "       Run: make eks-kubeconfig ENV=$ENV CLUSTER_NAME=<cluster-name>"
+  echo "       Or set ALLOW_CONTEXT_MISMATCH=true to bypass."
+  exit 1
+fi
+
 if [[ -z "$AWS_REGION" ]]; then
   echo "ERROR: AWS_REGION is empty. Set it in config/global.env or export AWS_REGION."
   exit 1
 fi
 
-for f in "$PROJECT_MANIFEST" "$ROOT_APP_MANIFEST" "$CSS_MANIFEST"; do
+for f in "$PROJECT_MANIFEST" "$ROOT_APP_MANIFEST" "$ENV_APP_MANIFEST" "$CSS_MANIFEST" "$VALUES_MANIFEST"; do
   if [[ ! -f "$f" ]]; then
     echo "ERROR: Missing manifest: $f"
     exit 1
   fi
 done
 
-echo "==> Cluster: $(kubectl config current-context)"
+if [[ "$APP_SCOPE" != "env" && "$APP_SCOPE" != "root" ]]; then
+  echo "ERROR: APP_SCOPE must be 'env' or 'root'. Current value: '$APP_SCOPE'"
+  exit 1
+fi
+
+if [[ "${SKIP_ESO:-false}" != "true" && -z "$ESO_IRSA_ROLE_ARN" ]]; then
+  echo "ERROR: ESO_IRSA_ROLE_ARN is required unless SKIP_ESO=true"
+  exit 1
+fi
+
+if [[ "${SKIP_ALB_CONTROLLER:-false}" != "true" && -z "$ALB_CONTROLLER_IRSA_ROLE_ARN" ]]; then
+  echo "ERROR: ALB_CONTROLLER_IRSA_ROLE_ARN is required unless SKIP_ALB_CONTROLLER=true"
+  exit 1
+fi
+
+if grep -q "REPLACE_ME.rds.amazonaws.com" "$VALUES_MANIFEST"; then
+  echo "ERROR: Found placeholder RDS host in $VALUES_MANIFEST"
+  exit 1
+fi
+
+if [[ "$ENV" == "stg" || "$ENV" == "prod" ]]; then
+  if ! grep -q 'alb.ingress.kubernetes.io/scheme: internet-facing' "$VALUES_MANIFEST"; then
+    echo "ERROR: Expected internet-facing ingress scheme for ENV=$ENV in $VALUES_MANIFEST"
+    exit 1
+  fi
+fi
+
+if [[ "$ENV" == "prod" ]]; then
+  if grep -q "REPLACE_ACM_CERTIFICATE_ARN" "$VALUES_MANIFEST"; then
+    echo "ERROR: Found placeholder ACM certificate ARN in $VALUES_MANIFEST"
+    exit 1
+  fi
+fi
+
+echo "==> Cluster: $CURRENT_CONTEXT"
 echo "==> Environment: $ENV | Region: $AWS_REGION"
+echo "==> Application scope: $APP_SCOPE"
 echo ""
 
 # ──────────────────────────────────────────────
@@ -163,14 +210,9 @@ if [[ "${SKIP_ALB_CONTROLLER:-false}" != "true" ]]; then
         --query 'cluster.resourcesVpcConfig.vpcId' --output text)"
   )
 
-  if [[ -n "$ALB_CONTROLLER_IRSA_ROLE_ARN" ]]; then
-    ALB_SA_ARGS+=(
-      "--set" "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${ALB_CONTROLLER_IRSA_ROLE_ARN}"
-    )
-  else
-    echo "WARN: ALB_CONTROLLER_IRSA_ROLE_ARN not set — controller will lack AWS permissions."
-    echo "      Run: terraform -chdir=platform/terraform/envs/${ENV} output -raw alb_controller_irsa_role_arn"
-  fi
+  ALB_SA_ARGS+=(
+    "--set" "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn=${ALB_CONTROLLER_IRSA_ROLE_ARN}"
+  )
 
   helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
     --namespace "$ALB_CONTROLLER_NAMESPACE" \
@@ -194,14 +236,21 @@ sed "s|REPLACE_AWS_REGION|${AWS_REGION}|g" "$CSS_MANIFEST" | kubectl apply -f -
 echo "ClusterSecretStore applied."
 
 # ──────────────────────────────────────────────
-# Step 5 — Apply ArgoCD project + root app
+# Step 5 — Apply ArgoCD project + application manifests
 # ──────────────────────────────────────────────
 echo ""
 echo "──────────────────────────────────────────────"
-echo "Step 5: Applying ArgoCD project and root application"
+echo "Step 5: Applying ArgoCD project and application manifests"
 echo "──────────────────────────────────────────────"
 kubectl apply -f "$PROJECT_MANIFEST"
-kubectl apply -f "$ROOT_APP_MANIFEST"
+
+if [[ "$APP_SCOPE" == "root" ]]; then
+  kubectl apply -f "$ROOT_APP_MANIFEST"
+  echo "Applied root application: openshelter-root"
+else
+  kubectl apply -f "$ENV_APP_MANIFEST"
+  echo "Applied environment application: openshelter-$ENV"
+fi
 
 echo ""
 echo "Bootstrap complete."
