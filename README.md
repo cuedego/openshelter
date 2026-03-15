@@ -170,6 +170,7 @@ flowchart TB
 - Repository/Environment Secrets (`secrets`):
 	- `TF_PLAN_ROLE_ARN`
 	- `ECR_PUSH_ROLE_ARN`
+	- `BOOTSTRAP_ROLE_ARN`
 - Derived in CI (no secret needed):
 	- `ECR_REGISTRY = ${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com`
 - Recommendation: use GitHub Environments (`dev`, `stg`, `prod`) with approvals/protection rules for production values.
@@ -177,6 +178,7 @@ flowchart TB
 ### GitHub Hardening Checklist
 - Create GitHub Environments used by workflow jobs:
 	- `dev` (used by `terraform-plan`)
+	- `stg` (used by `Bootstrap Environment`)
 	- `prod` (used by `docker-build-push`)
 - Restrict who can deploy to `prod` environment (required reviewers / admins only).
 - Configure environment-scoped vars/secrets (prefer over repository-wide values for sensitive environments).
@@ -196,6 +198,7 @@ flowchart TB
 2. Configure Secrets (`Settings` -> `Secrets and variables` -> `Actions` -> `Secrets`):
 	- `TF_PLAN_ROLE_ARN`
 	- `ECR_PUSH_ROLE_ARN`
+	- `BOOTSTRAP_ROLE_ARN` (environment secret for `dev`, `stg`, `prod`)
 3. Prefer Environment-level values for `dev` and `prod` (instead of only repository-level).
 4. Validate PR path:
 	- Open a PR from an internal branch.
@@ -208,6 +211,7 @@ flowchart TB
 	- Confirm workflow fails early with `Missing required CI configuration`.
 7. Keep auditability:
 	- Use `workflow_dispatch` for controlled/manual execution.
+	- Use `Bootstrap Environment` for environment-scoped `bootstrap-e2e` runs.
 	- Record first successful run URLs in release/change notes.
 
 ## ADRs and Operational Docs

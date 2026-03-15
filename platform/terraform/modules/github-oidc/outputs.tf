@@ -12,3 +12,8 @@ output "ecr_push_role_arn" {
   description = "IAM role ARN for the docker-build-push CI job — use as ECR_PUSH_ROLE_ARN GitHub secret"
   value       = aws_iam_role.ecr_push.arn
 }
+
+output "bootstrap_role_arn" {
+  description = "IAM role ARN for the manual bootstrap workflow — use as BOOTSTRAP_ROLE_ARN GitHub environment secret"
+  value       = aws_iam_role.bootstrap.arn
+}

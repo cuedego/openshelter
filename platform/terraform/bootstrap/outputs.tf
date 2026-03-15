@@ -17,3 +17,8 @@ output "ecr_push_role_arn" {
   value       = module.github_oidc.ecr_push_role_arn
   description = "Set as ECR_PUSH_ROLE_ARN GitHub Actions secret"
 }
+
+output "bootstrap_role_arn" {
+  value       = module.github_oidc.bootstrap_role_arn
+  description = "Set as BOOTSTRAP_ROLE_ARN GitHub Actions environment secret"
+}

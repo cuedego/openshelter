@@ -1,0 +1,103 @@
+name: Bootstrap Environment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment to bootstrap
+        required: true
+        type: choice
+        options:
+          - dev
+          - stg
+          - prod
+      first_apply:
+        description: Generate bootstrap secrets for a brand-new environment
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+  TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+  TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
+  TF_STATE_KEY_PREFIX: ${{ vars.TF_STATE_KEY_PREFIX }}
+  TF_IN_AUTOMATION: "1"
+  AWS_PAGER: ""
+  DISABLE_AUTO_UPDATE: "true"
+
+jobs:
+  bootstrap:
+    name: Bootstrap ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    concurrency:
+      group: bootstrap-${{ inputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      TF_VAR_github_bootstrap_role_arn: ${{ secrets.BOOTSTRAP_ROLE_ARN }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate required CI vars/secrets
+        shell: bash
+        env:
+          BOOTSTRAP_ROLE_ARN: ${{ secrets.BOOTSTRAP_ROLE_ARN }}
+        run: |
+          missing=0
+          required=(AWS_REGION TF_STATE_BUCKET TF_LOCK_TABLE TF_STATE_KEY_PREFIX BOOTSTRAP_ROLE_ARN)
+          for var in "${required[@]}"; do
+            if [[ -z "${!var}" ]]; then
+              echo "::error title=Missing required CI configuration::${var} is not set"
+              missing=1
+            fi
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            echo "Bootstrap workflow configuration validation failed. Configure required vars/secrets in GitHub Actions settings."
+            exit 1
+          fi
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.BOOTSTRAP_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run end-to-end bootstrap
+        shell: bash
+        env:
+          FIRST_APPLY: ${{ inputs.first_apply }}
+        run: |
+          make bootstrap-e2e ENV=${{ inputs.environment }} FIRST_APPLY=${FIRST_APPLY}
+
+      - name: Write workflow summary
+        shell: bash
+        run: |
+          {
+            echo "## Bootstrap complete"
+            echo "- Environment: ${{ inputs.environment }}"
+            echo "- First apply: ${{ inputs.first_apply }}"
+            echo "- Workflow: successful"
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -160,3 +160,33 @@ resource "aws_iam_role_policy" "ecr_push" {
     ]
   })
 }
+
+# ── IAM role: bootstrap (manual environment-scoped apply + kube bootstrap) ───
+
+resource "aws_iam_role" "bootstrap" {
+  name = var.bootstrap_role_name
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Federated = aws_iam_openid_connect_provider.github.arn }
+      Action    = "sts:AssumeRoleWithWebIdentity"
+      Condition = {
+        StringEquals = {
+          "token.actions.githubusercontent.com:aud" = "sts.amazonaws.com"
+        }
+        StringLike = {
+          "token.actions.githubusercontent.com:sub" = [for env_name in var.bootstrap_environment_names : "repo:${var.github_org}/${var.github_repo}:environment:${env_name}"]
+        }
+      }
+    }]
+  })
+
+  tags = var.tags
+}
+
+resource "aws_iam_role_policy_attachment" "bootstrap_admin" {
+  role       = aws_iam_role.bootstrap.name
+  policy_arn = "arn:aws:iam::aws:policy/AdministratorAccess"
+}

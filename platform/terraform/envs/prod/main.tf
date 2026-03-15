@@ -15,15 +15,16 @@ module "network" {
 }
 
 module "eks" {
-  source              = "../../modules/eks"
-  name                = "${local.name_prefix}-eks"
-  vpc_id              = module.network.vpc_id
-  subnet_ids          = module.network.private_subnet_ids
-  node_instance_types = ["t3.large"]
-  node_desired_size   = 3
-  node_min_size       = 2
-  node_max_size       = 6
-  tags                = local.common_tags
+  source                       = "../../modules/eks"
+  name                         = "${local.name_prefix}-eks"
+  vpc_id                       = module.network.vpc_id
+  subnet_ids                   = module.network.private_subnet_ids
+  cluster_admin_principal_arns = var.github_bootstrap_role_arn == null ? [] : [var.github_bootstrap_role_arn]
+  node_instance_types          = ["t3.large"]
+  node_desired_size            = 3
+  node_min_size                = 2
+  node_max_size                = 6
+  tags                         = local.common_tags
 }
 
 module "rds" {

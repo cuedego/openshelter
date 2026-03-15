@@ -38,3 +38,10 @@ variable "use_existing_secret_values" {
   description = "Use existing AWS Secrets Manager values during routine plan/apply operations"
   default     = true
 }
+
+variable "github_bootstrap_role_arn" {
+  type        = string
+  description = "Optional GitHub Actions bootstrap role ARN to grant EKS cluster-admin access"
+  default     = null
+  nullable    = true
+}
