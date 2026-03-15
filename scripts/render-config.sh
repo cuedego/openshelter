@@ -13,6 +13,12 @@ set -a
 source "$REPO_ROOT/config/global.env"
 set +a
 
+if [[ -f "$REPO_ROOT/config/local.env" ]]; then
+  set -a
+  source "$REPO_ROOT/config/local.env"
+  set +a
+fi
+
 required_vars=(AWS_REGION TF_STATE_BUCKET TF_LOCK_TABLE TF_STATE_KEY_PREFIX)
 for var_name in "${required_vars[@]}"; do
   if [[ -z "${!var_name:-}" ]]; then
