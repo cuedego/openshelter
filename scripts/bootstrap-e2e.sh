@@ -8,6 +8,7 @@ ENV="${ENV:-dev}"
 FIRST_APPLY="${FIRST_APPLY:-false}"
 TF_TIMEOUT_SECONDS="${TF_TIMEOUT_SECONDS:-0}"
 ARGO_WAIT_TIMEOUT_SECONDS="${ARGO_WAIT_TIMEOUT_SECONDS:-900}"
+ALLOW_PROGRESSING_HEALTH_ON_TIMEOUT="${ALLOW_PROGRESSING_HEALTH_ON_TIMEOUT:-false}"
 
 if [[ -f "$REPO_ROOT/config/global.env" ]]; then
   set -a
@@ -141,6 +142,12 @@ while true; do
   now="$(date +%s)"
   elapsed="$((now - START_TS))"
   if (( elapsed > ARGO_WAIT_TIMEOUT_SECONDS )); then
+    if [[ "$ALLOW_PROGRESSING_HEALTH_ON_TIMEOUT" == "true" && "$sync_status" == "Synced" && "$health_status" == "Progressing" ]]; then
+      echo "WARN: Timed out waiting for Healthy, but app is Synced/Progressing; continuing due to ALLOW_PROGRESSING_HEALTH_ON_TIMEOUT=true."
+      kubectl --context "$ENV" -n argocd get application "$APP_NAME" -o wide || true
+      break
+    fi
+
     echo "ERROR: Timeout waiting for $APP_NAME to become Synced/Healthy."
     kubectl --context "$ENV" -n argocd get application "$APP_NAME" -o wide || true
     exit 1
