@@ -97,6 +97,7 @@ jobs:
         shell: bash
         env:
           FIRST_APPLY: ${{ inputs.first_apply }}
+          ARGO_WAIT_TIMEOUT_SECONDS: 2400
           ARGOCD_REPO_URL: https://github.com/cuedego/openshelter.git
           ARGOCD_REPO_USERNAME: x-access-token
           ARGOCD_REPO_PASSWORD: ${{ github.token }}
