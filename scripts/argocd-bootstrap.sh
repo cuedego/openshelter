@@ -153,9 +153,9 @@ if [[ "${SKIP_ARGOCD:-false}" != "true" ]]; then
     --wait --timeout 5m
   echo "ArgoCD installed."
 
-  if [[ -n "$ARGOCD_REPO_USERNAME" && -n "$ARGOCD_REPO_PASSWORD" ]]; then
-    echo "Applying ArgoCD repository credential secret..."
-    cat <<EOF | kubectl apply -f -
+  echo "Applying ArgoCD repository credential secret..."
+  # Build the secret manifest; credentials are optional (omit for public repos)
+  REPO_SECRET_MANIFEST=$(cat <<ENDOFMANIFEST
 apiVersion: v1
 kind: Secret
 metadata:
@@ -166,11 +166,14 @@ metadata:
 stringData:
   type: git
   url: ${ARGOCD_REPO_URL}
-  username: ${ARGOCD_REPO_USERNAME}
-  password: ${ARGOCD_REPO_PASSWORD}
-EOF
-    echo "ArgoCD repository credential secret applied."
+ENDOFMANIFEST
+)
+  if [[ -n "${ARGOCD_REPO_USERNAME:-}" && -n "${ARGOCD_REPO_PASSWORD:-}" ]]; then
+    REPO_SECRET_MANIFEST+=$'\n  username: '"${ARGOCD_REPO_USERNAME}"
+    REPO_SECRET_MANIFEST+=$'\n  password: '"${ARGOCD_REPO_PASSWORD}"
   fi
+  echo "$REPO_SECRET_MANIFEST" | kubectl apply -f -
+  echo "ArgoCD repository credential secret applied."
 else
   echo "Step 1: Skipping ArgoCD install (SKIP_ARGOCD=true)"
 fi
