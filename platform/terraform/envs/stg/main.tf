@@ -24,12 +24,13 @@ module "eks" {
 }
 
 module "rds" {
-  source         = "../../modules/rds-postgresql"
-  identifier     = "${local.name_prefix}-rds"
-  db_name        = "openshelter"
-  username       = "openshelter_admin"
-  password       = module.secrets.effective_secret_values["rds/password"]
-  instance_class = "db.t3.small"
+  source     = "../../modules/rds-postgresql"
+  identifier = "${local.name_prefix}-rds"
+  db_name    = "openshelter"
+  username   = "openshelter_admin"
+  password   = module.secrets.effective_secret_values["rds/password"]
+  # instance_class = "db.t3.small"
+  instance_class = "db.t4g.micro"
   vpc_id         = module.network.vpc_id
   vpc_cidr       = var.vpc_cidr
   subnet_ids     = module.network.private_subnet_ids
