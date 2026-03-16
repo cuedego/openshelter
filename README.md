@@ -1,8 +1,10 @@
 # OpenShelter
 
-OpenShelter is a cloud-native monitoring platform built around Zabbix and MQTT.
+OpenShelter is a cloud-native monitoring platform built for IoT fleets, telemetry-heavy systems, and other operational environments that produce enough signals to matter but are still too often observed with the rigor of a campfire omen. It combines Zabbix, MQTT, AWS, Terraform, Ansible, Helm, and ArgoCD into a reproducible and auditable stack for teams that would rather manage infrastructure deliberately than by ritual, memory, and post-incident storytelling.
 
-The project is designed to monitor IoT devices and any systems that can publish telemetry through MQTT, while maintaining a resilient and auditable operations model.
+The project exists to provide a structured foundation for collecting, routing, monitoring, and operationalizing telemetry across distributed systems without collapsing into the usual carnival of hand-tuned environments, undocumented dependencies, and infrastructure decisions made under emotional distress. OpenShelter favors declarative provisioning, GitOps workflows, environment-aware configuration, and enough operational discipline to keep serious systems from being maintained like inherited folklore.
+
+This repository brings together the platform components, deployment logic, security policies, and supporting automation required to run the stack with some degree of consistency, which, as it turns out, is still a surprisingly controversial ambition in modern infrastructure. The goal is not novelty for its own sake, but a monitoring architecture that is observable, repeatable, maintainable, and unpleasantly difficult to sabotage through carelessness.
 
 ## Platform Goals
 - Centralize monitoring for MQTT-capable devices and services
