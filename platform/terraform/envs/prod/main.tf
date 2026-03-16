@@ -20,7 +20,7 @@ module "eks" {
   vpc_id                       = module.network.vpc_id
   subnet_ids                   = module.network.private_subnet_ids
   cluster_admin_principal_arns = var.github_bootstrap_role_arn == null ? [] : [var.github_bootstrap_role_arn]
-  node_instance_types          = ["t3.small"]
+  node_instance_types          = ["t3.medium"]
   node_desired_size            = 2
   node_min_size                = 1
   node_max_size                = 4

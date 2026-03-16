@@ -16,8 +16,7 @@ variable "subnet_ids" {
 variable "node_instance_types" {
   type        = list(string)
   description = "EC2 instance types for the managed node group"
-# default     = ["t3.medium"]
-  default     = ["t3.small"]
+  default     = ["t3.medium"]
 }
 
 variable "node_desired_size" {
