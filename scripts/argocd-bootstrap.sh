@@ -51,6 +51,10 @@ ALB_CONTROLLER_IRSA_ROLE_ARN="${ALB_CONTROLLER_IRSA_ROLE_ARN:-}"
 ALB_CONTROLLER_CHART_VERSION="${ALB_CONTROLLER_CHART_VERSION:-1.8.1}"
 ALB_CONTROLLER_NAMESPACE="${ALB_CONTROLLER_NAMESPACE:-kube-system}"
 
+ARGOCD_REPO_URL="${ARGOCD_REPO_URL:-https://github.com/cuedego/openshelter.git}"
+ARGOCD_REPO_USERNAME="${ARGOCD_REPO_USERNAME:-}"
+ARGOCD_REPO_PASSWORD="${ARGOCD_REPO_PASSWORD:-}"
+
 PROJECT_MANIFEST="$REPO_ROOT/platform/gitops/argocd/projects/openshelter-project.yaml"
 ROOT_APP_MANIFEST="$REPO_ROOT/platform/gitops/argocd/apps/root-app.yaml"
 ENV_APP_MANIFEST="$REPO_ROOT/platform/gitops/argocd/apps/children/openshelter-${ENV}.yaml"
@@ -148,6 +152,25 @@ if [[ "${SKIP_ARGOCD:-false}" != "true" ]]; then
     --set configs.params."server\.insecure"=true \
     --wait --timeout 5m
   echo "ArgoCD installed."
+
+  if [[ -n "$ARGOCD_REPO_USERNAME" && -n "$ARGOCD_REPO_PASSWORD" ]]; then
+    echo "Applying ArgoCD repository credential secret..."
+    cat <<EOF | kubectl apply -f -
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-repo-openshelter
+  namespace: ${ARGOCD_NAMESPACE}
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: ${ARGOCD_REPO_URL}
+  username: ${ARGOCD_REPO_USERNAME}
+  password: ${ARGOCD_REPO_PASSWORD}
+EOF
+    echo "ArgoCD repository credential secret applied."
+  fi
 else
   echo "Step 1: Skipping ArgoCD install (SKIP_ARGOCD=true)"
 fi
