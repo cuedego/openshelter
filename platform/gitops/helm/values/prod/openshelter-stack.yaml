@@ -14,7 +14,7 @@ zabbix:
       cpu: 1000m
       memory: 2Gi
   db:
-    host: "REPLACE_ME.rds.amazonaws.com"
+    host: "openshelter-prod-rds.cjws62ie8i3t.eu-central-1.rds.amazonaws.com"
   ingress:
     enabled: true
     annotations:
