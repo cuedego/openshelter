@@ -8,11 +8,11 @@ zabbix:
     tag: "4cff888"
   resources:
     requests:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 350m
+      memory: 768Mi
     limits:
-      cpu: 1000m
-      memory: 2Gi
+      cpu: 750m
+      memory: 1536Mi
   db:
     host: "openshelter-prod-rds.cjws62ie8i3t.eu-central-1.rds.amazonaws.com"
   ingress:
@@ -26,7 +26,7 @@ zabbix:
       remoteRef: "openshelter-prod/zabbix/admin-password"
 mqtt:
   enabled: true
-  replicaCount: 2
+  replicaCount: 1
   image:
     repository: "052081665529.dkr.ecr.eu-central-1.amazonaws.com/openshelter/mqtt"
     tag: "4cff888"
