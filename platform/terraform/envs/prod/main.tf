@@ -20,10 +20,10 @@ module "eks" {
   vpc_id                       = module.network.vpc_id
   subnet_ids                   = module.network.private_subnet_ids
   cluster_admin_principal_arns = var.github_bootstrap_role_arn == null ? [] : [var.github_bootstrap_role_arn]
-  node_instance_types          = ["t3.large"]
-  node_desired_size            = 3
-  node_min_size                = 2
-  node_max_size                = 6
+  node_instance_types          = ["t3.small"]
+  node_desired_size            = 2
+  node_min_size                = 1
+  node_max_size                = 4
   tags                         = local.common_tags
 }
 
@@ -33,7 +33,8 @@ module "rds" {
   db_name        = "openshelter"
   username       = "openshelter_admin"
   password       = module.secrets.effective_secret_values["rds/password"]
-  instance_class = "db.t3.medium"
+# instance_class = "db.t3.medium"
+  instance_class = "db.t4g.micro"
   vpc_id         = module.network.vpc_id
   vpc_cidr       = var.vpc_cidr
   subnet_ids     = module.network.private_subnet_ids
