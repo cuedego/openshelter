@@ -2,7 +2,7 @@ global:
   environment: prod
 zabbix:
   enabled: true
-  replicaCount: 2
+  replicaCount: 1
   image:
     repository: "052081665529.dkr.ecr.eu-central-1.amazonaws.com/openshelter/zabbix"
     tag: "fa9d4cf"
