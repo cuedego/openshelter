@@ -1,5 +1,12 @@
 locals {
   repository_names_set = toset(var.repository_names)
+  repositories_for_policy = var.create_repositories ? {
+    for name, repository in aws_ecr_repository.this :
+    name => repository.name
+    } : {
+    for name, repository in data.aws_ecr_repository.existing :
+    name => repository.name
+  }
 }
 
 resource "aws_ecr_repository" "this" {
@@ -26,7 +33,7 @@ data "aws_ecr_repository" "existing" {
 }
 
 resource "aws_ecr_lifecycle_policy" "this" {
-  for_each   = local.repository_names_set
+  for_each   = local.repositories_for_policy
   repository = each.value
 
   policy = jsonencode({
