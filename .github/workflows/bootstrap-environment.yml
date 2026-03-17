@@ -102,6 +102,9 @@ jobs:
           ARGOCD_REPO_URL: https://github.com/cuedego/openshelter.git
           # Repo is public — no credentials needed; omitting ARGOCD_REPO_USERNAME / ARGOCD_REPO_PASSWORD
           # so the bootstrap script creates the secret without a token that will expire.
+          # Passed to Terraform as github_bootstrap_role_arn so the CI role gets
+          # an EKS access entry and kubectl works immediately after apply.
+          GITHUB_BOOTSTRAP_ROLE_ARN: ${{ secrets.BOOTSTRAP_ROLE_ARN }}
         run: |
           make bootstrap-e2e ENV=${{ inputs.environment }} FIRST_APPLY=${FIRST_APPLY}
 

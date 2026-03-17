@@ -105,6 +105,12 @@ if [[ "$FIRST_APPLY" == "true" ]]; then
   )
 fi
 
+# Grant the CI role cluster-admin access so kubectl works immediately after apply.
+GITHUB_BOOTSTRAP_ROLE_ARN="${GITHUB_BOOTSTRAP_ROLE_ARN:-}"
+if [[ -n "$GITHUB_BOOTSTRAP_ROLE_ARN" ]]; then
+  TF_APPLY_ARGS+=(-var="github_bootstrap_role_arn=${GITHUB_BOOTSTRAP_ROLE_ARN}")
+fi
+
 echo "==> Terraform apply ($ENV)"
 if [[ "$TF_TIMEOUT_SECONDS" != "0" ]]; then
   timeout "$TF_TIMEOUT_SECONDS" terraform "${TF_APPLY_ARGS[@]}"
