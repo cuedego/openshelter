@@ -77,4 +77,26 @@ for env in dev stg prod; do
   render_backend_hcl "$backend_file" "$env" "$env_file"
 done
 
+shared_backend_file="$REPO_ROOT/platform/terraform/shared/backend.hcl"
+shared_state_key="${TF_STATE_KEY_SHARED:-${TF_STATE_KEY_PREFIX}/shared/terraform.tfstate}"
+
+cat > "$shared_backend_file" <<EOF
+bucket         = "${TF_STATE_BUCKET}"
+key            = "${shared_state_key}"
+region         = "${AWS_REGION}"
+dynamodb_table = "${TF_LOCK_TABLE}"
+encrypt        = true
+EOF
+
+access_backend_file="$REPO_ROOT/platform/terraform/access/backend.hcl"
+access_state_key="${TF_STATE_KEY_ACCESS:-${TF_STATE_KEY_PREFIX}/access/terraform.tfstate}"
+
+cat > "$access_backend_file" <<EOF
+bucket         = "${TF_STATE_BUCKET}"
+key            = "${access_state_key}"
+region         = "${AWS_REGION}"
+dynamodb_table = "${TF_LOCK_TABLE}"
+encrypt        = true
+EOF
+
 echo "Config rendered successfully from config/global.env + config/env/*.env"

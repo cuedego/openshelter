@@ -2,6 +2,8 @@
 **/.terraform/*
 **/.terraform.lock.hcl
 platform/terraform/envs/*/backend.hcl
+platform/terraform/shared/backend.hcl
+platform/terraform/access/backend.hcl
 *.tfstate
 *.tfstate.*
 crash.log

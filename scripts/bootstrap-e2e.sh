@@ -49,6 +49,12 @@ if [[ -z "$VPC_CIDR" ]]; then
   exit 1
 fi
 
+BOOTSTRAP_ROLE_ARN="${BOOTSTRAP_ROLE_ARN:-}"
+if [[ -z "$BOOTSTRAP_ROLE_ARN" ]]; then
+  echo "ERROR: BOOTSTRAP_ROLE_ARN is empty. Configure config/local.env or environment."
+  exit 1
+fi
+
 if [[ "$FIRST_APPLY" != "true" && "$FIRST_APPLY" != "false" ]]; then
   echo "ERROR: FIRST_APPLY must be 'true' or 'false'."
   exit 1
@@ -105,11 +111,8 @@ if [[ "$FIRST_APPLY" == "true" ]]; then
   )
 fi
 
-# Grant the CI role cluster-admin access so kubectl works immediately after apply.
-GITHUB_BOOTSTRAP_ROLE_ARN="${GITHUB_BOOTSTRAP_ROLE_ARN:-}"
-if [[ -n "$GITHUB_BOOTSTRAP_ROLE_ARN" ]]; then
-  TF_APPLY_ARGS+=(-var="github_bootstrap_role_arn=${GITHUB_BOOTSTRAP_ROLE_ARN}")
-fi
+# Grant the bootstrap role cluster-admin access so kubectl works immediately after apply.
+TF_APPLY_ARGS+=(-var="github_bootstrap_role_arn=${BOOTSTRAP_ROLE_ARN}")
 
 echo "==> Terraform apply ($ENV)"
 if [[ "$TF_TIMEOUT_SECONDS" != "0" ]]; then

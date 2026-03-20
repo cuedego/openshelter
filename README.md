@@ -132,17 +132,19 @@ flowchart TB
 0. Prepare local tooling (Linux): `make bootstrap-linux` (or `SKIP_DOCKER=true make bootstrap-linux` if Docker is managed externally).
 1. Set central configuration values in `config/global.env` and `config/env/{dev,stg,prod}.env`.
 	- Versioned defaults in `config/global.env`: `AWS_REGION`, `TF_STATE_KEY_PREFIX`, chart versions, repository metadata.
-	- Local-only overrides (not versioned): create `config/local.env` for `AWS_ACCOUNT_ID`, `TF_STATE_BUCKET`, `TF_LOCK_TABLE` (and optional `TF_STATE_KEY_PREFIX`).
+	- Local-only overrides (not versioned): create `config/local.env` for `AWS_ACCOUNT_ID`, `TF_STATE_BUCKET`, `TF_LOCK_TABLE`, `BOOTSTRAP_ROLE_ARN` (and optional `TF_STATE_KEY_PREFIX`).
 	- Required in each `config/env/*.env`: `ENV`, `CLUSTER_NAME`, `VPC_CIDR`, `RDS_HOST` (and optional `TF_STATE_KEY`).
 2. Configure AWS credentials with least-privilege permissions.
-3. Run Terraform backend bootstrap in `platform/terraform/bootstrap`.
-4. Inspect loaded config (`make show-config ENV=dev`).
-5. Render environment artifacts from central config (`make render-config`) — this generates `backend.hcl` per Terraform environment and updates environment Helm values with `RDS_HOST`.
-6. On the first environment apply only, provide the three bootstrap secrets explicitly (`rds_password`, `zabbix_admin_password`, `mqtt_password`). After the secrets exist in AWS Secrets Manager, normal `plan`/`apply` runs can omit them and Terraform will reuse the current stored values instead of rotating them.
-7. Plan Terraform for one environment (`make terraform-env-plan ENV=dev`).
-8. Validate charts and checks (`make validate` and `make config-check`).
-9. Bootstrap ArgoCD objects (`make argocd-bootstrap ENV=dev ESO_IRSA_ROLE_ARN=<arn> ALB_CONTROLLER_IRSA_ROLE_ARN=<arn>`).
-10. For full end-to-end automation per environment, run `make bootstrap-e2e ENV=<dev|stg|prod> FIRST_APPLY=<true|false>`.
+3. Run Terraform platform bootstrap in `platform/terraform/bootstrap` (state backend + CI identity).
+4. Run Terraform shared resources bootstrap in `platform/terraform/shared` (shared ECR repositories and policies).
+5. Run Terraform access governance bootstrap in `platform/terraform/access` (EKS cluster-admin access entries and policy associations).
+6. Inspect loaded config (`make show-config ENV=dev`).
+7. Render environment artifacts from central config (`make render-config`) — this generates `backend.hcl` for `shared`, `access`, and each Terraform environment, and updates environment Helm values with `RDS_HOST`.
+8. On the first environment apply only, provide the three bootstrap secrets explicitly (`rds_password`, `zabbix_admin_password`, `mqtt_password`). After the secrets exist in AWS Secrets Manager, normal `plan`/`apply` runs can omit them and Terraform will reuse the current stored values instead of rotating them.
+9. Plan Terraform for one environment (`make terraform-env-plan ENV=dev`).
+10. Validate charts and checks (`make validate` and `make config-check`).
+11. Bootstrap ArgoCD objects (`make argocd-bootstrap ENV=dev ESO_IRSA_ROLE_ARN=<arn> ALB_CONTROLLER_IRSA_ROLE_ARN=<arn>`).
+12. For full end-to-end automation per environment, run `make bootstrap-e2e ENV=<dev|stg|prod> FIRST_APPLY=<true|false>`.
 
 ### Secret Rotation Safety
 - Default behavior: no password rotation on routine Terraform runs.
@@ -152,7 +154,7 @@ flowchart TB
 
 ## Quality Gates
 - English-only repository policy check
-- Terraform formatting and validation (`bootstrap`, `dev`, `stg`, `prod`)
+- Terraform formatting and validation (`bootstrap`, `shared`, `access`, `dev`, `stg`, `prod`)
 - Helm linting
 - Ansible playbook syntax validation
 - Config consistency check for legacy region literals (`make config-check`)
@@ -161,6 +163,8 @@ flowchart TB
 - Default cluster bootstrap applies only the target environment application (`openshelter-<env>`), reducing cross-environment blast radius.
 - Use `APP_SCOPE=root` only when intentionally reconciling all children from `platform/gitops/argocd/apps/children`.
 - For `stg` and `prod`, ingress is expected to be `internet-facing` during the current public-access phase.
+- ECR lifecycle is intentionally excluded from environment bootstrap and managed only by the shared Terraform stack (`platform/terraform/shared`).
+- EKS bootstrap cluster-admin access is intentionally excluded from environment stacks and managed only by the access Terraform stack (`platform/terraform/access`).
 
 ## GitHub Actions Configuration Contract
 - Repository/Environment Variables (`vars`):
@@ -181,7 +185,7 @@ flowchart TB
 - Create GitHub Environments used by workflow jobs:
 	- `dev` (used by `terraform-plan`)
 	- `stg` (used by `Bootstrap Environment`)
-	- `prod` (used by `docker-build-push`)
+	- `prod` (used by `Bootstrap Shared Resources`, `Bootstrap EKS Access Governance`, and `docker-build-push`)
 - Restrict who can deploy to `prod` environment (required reviewers / admins only).
 - Configure environment-scoped vars/secrets (prefer over repository-wide values for sensitive environments).
 - Enable branch protection for `main`:
@@ -214,6 +218,7 @@ flowchart TB
 7. Keep auditability:
 	- Use `workflow_dispatch` for controlled/manual execution.
 	- Use `Bootstrap Environment` for environment-scoped `bootstrap-e2e` runs.
+	- Use `Bootstrap Shared Resources` and `Bootstrap EKS Access Governance` for shared governance applies.
 	- Record first successful run URLs in release/change notes.
 
 ## ADRs and Operational Docs

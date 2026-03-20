@@ -58,6 +58,14 @@ jobs:
         run: |
           terraform -chdir=platform/terraform/bootstrap init -backend=false
           terraform -chdir=platform/terraform/bootstrap validate
+      - name: Validate shared
+        run: |
+          terraform -chdir=platform/terraform/shared init -backend=false
+          terraform -chdir=platform/terraform/shared validate
+      - name: Validate access
+        run: |
+          terraform -chdir=platform/terraform/access init -backend=false
+          terraform -chdir=platform/terraform/access validate
       - name: Validate dev environment
         run: |
           terraform -chdir=platform/terraform/envs/dev init -backend=false
@@ -125,9 +133,10 @@ jobs:
           TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
           TF_STATE_KEY_PREFIX: ${{ vars.TF_STATE_KEY_PREFIX }}
           TF_PLAN_ROLE_ARN: ${{ secrets.TF_PLAN_ROLE_ARN }}
+          BOOTSTRAP_ROLE_ARN: ${{ secrets.BOOTSTRAP_ROLE_ARN }}
         run: |
           missing=0
-          required=(AWS_REGION TF_STATE_BUCKET TF_LOCK_TABLE TF_STATE_KEY_PREFIX TF_PLAN_ROLE_ARN)
+          required=(AWS_REGION TF_STATE_BUCKET TF_LOCK_TABLE TF_STATE_KEY_PREFIX TF_PLAN_ROLE_ARN BOOTSTRAP_ROLE_ARN)
           for var in "${required[@]}"; do
             if [[ -z "${!var}" ]]; then
               echo "::error title=Missing required CI configuration::${var} is not set"
@@ -164,6 +173,8 @@ jobs:
 
       - name: Terraform plan (dev)
         id: plan
+        env:
+          BOOTSTRAP_ROLE_ARN: ${{ secrets.BOOTSTRAP_ROLE_ARN }}
         run: |
           terraform -chdir=platform/terraform/envs/dev plan \
             -input=false \
@@ -172,6 +183,7 @@ jobs:
             -var="region=${AWS_REGION}" \
             -var="environment=dev" \
             -var="vpc_cidr=10.255.250.0/24" \
+            -var="github_bootstrap_role_arn=${BOOTSTRAP_ROLE_ARN}" \
             2>&1 | tee /tmp/plan.txt
           echo "exitcode=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
         continue-on-error: true

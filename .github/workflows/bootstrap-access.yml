@@ -1,21 +1,7 @@
-name: Bootstrap Environment
+name: Bootstrap EKS Access Governance
 
 on:
   workflow_dispatch:
-    inputs:
-      environment:
-        description: Target environment to bootstrap
-        required: true
-        type: choice
-        options:
-          - dev
-          - stg
-          - prod
-      first_apply:
-        description: Generate bootstrap secrets for a brand-new environment
-        required: true
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -31,12 +17,12 @@ env:
   DISABLE_AUTO_UPDATE: "true"
 
 jobs:
-  bootstrap:
-    name: Bootstrap ${{ inputs.environment }}
+  bootstrap-access:
+    name: Bootstrap EKS access governance
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: prod
     concurrency:
-      group: bootstrap-${{ inputs.environment }}
+      group: bootstrap-access
       cancel-in-progress: false
     permissions:
       id-token: write
@@ -59,23 +45,12 @@ jobs:
             fi
           done
           if [[ "$missing" -ne 0 ]]; then
-            echo "Bootstrap workflow configuration validation failed. Configure required vars/secrets in GitHub Actions settings."
+            echo "Access bootstrap workflow configuration validation failed. Configure required vars/secrets in GitHub Actions settings."
             exit 1
           fi
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
-
-      - name: Setup Helm
-        uses: azure/setup-helm@v4
-
-      - name: Setup kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
 
       - name: Configure AWS credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
@@ -93,26 +68,22 @@ jobs:
           TF_STATE_KEY_PREFIX=${TF_STATE_KEY_PREFIX}
           EOF
 
-      - name: Run end-to-end bootstrap
-        shell: bash
+      - name: Render backend config
+        run: make render-config
+
+      - name: Terraform init (access)
+        run: terraform -chdir=platform/terraform/access init -input=false -backend-config=backend.hcl -no-color
+
+      - name: Terraform apply (access)
         env:
-          FIRST_APPLY: ${{ inputs.first_apply }}
-          ARGO_WAIT_TIMEOUT_SECONDS: 2400
-          ALLOW_PROGRESSING_HEALTH_ON_TIMEOUT: true
-          ARGOCD_REPO_URL: https://github.com/cuedego/openshelter.git
-          # Repo is public — no credentials needed; omitting ARGOCD_REPO_USERNAME / ARGOCD_REPO_PASSWORD
-          # so the bootstrap script creates the secret without a token that will expire.
-          # Single source for Terraform github_bootstrap_role_arn to keep EKS access stable.
           BOOTSTRAP_ROLE_ARN: ${{ secrets.BOOTSTRAP_ROLE_ARN }}
-        run: |
-          make bootstrap-e2e ENV=${{ inputs.environment }} FIRST_APPLY=${FIRST_APPLY}
+        run: terraform -chdir=platform/terraform/access apply -auto-approve -input=false -no-color -var="region=${AWS_REGION}" -var="bootstrap_role_arn=${BOOTSTRAP_ROLE_ARN}"
 
       - name: Write workflow summary
         shell: bash
         run: |
           {
-            echo "## Bootstrap complete"
-            echo "- Environment: ${{ inputs.environment }}"
-            echo "- First apply: ${{ inputs.first_apply }}"
+            echo "## Access bootstrap complete"
+            echo "- Scope: EKS access governance"
             echo "- Workflow: successful"
           } >> "$GITHUB_STEP_SUMMARY"

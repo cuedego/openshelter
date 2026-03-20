@@ -41,7 +41,6 @@ variable "use_existing_secret_values" {
 
 variable "github_bootstrap_role_arn" {
   type        = string
-  description = "Optional GitHub Actions bootstrap role ARN to grant EKS cluster-admin access"
-  default     = null
-  nullable    = true
+  description = "GitHub Actions bootstrap role ARN used to grant EKS cluster-admin access"
+  nullable    = false
 }

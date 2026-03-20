@@ -24,7 +24,7 @@ ALB_CONTROLLER_IRSA_ROLE_ARN ?= # Set after applying env Terraform: terraform ou
 ZABBIX_URL ?= http://localhost:8080/api_jsonrpc.php
 
 .PHONY: fmt validate \
-	terraform-bootstrap terraform-dev-plan terraform-env-plan \
+	terraform-bootstrap terraform-shared-plan terraform-access-plan terraform-dev-plan terraform-env-plan \
         helm-lint ansible-lint ansible-syntax \
         eks-kubeconfig cluster-bootstrap bootstrap-e2e install-argocd install-eso argocd-bootstrap \
 	ecr-login docker-build docker-push docker-build-push \
@@ -38,6 +38,10 @@ validate:
 	@echo "Validating Terraform and Helm scaffolding..."
 	@terraform -chdir=platform/terraform/bootstrap init -backend=false
 	@terraform -chdir=platform/terraform/bootstrap validate
+	@terraform -chdir=platform/terraform/shared init -backend=false
+	@terraform -chdir=platform/terraform/shared validate
+	@terraform -chdir=platform/terraform/access init -backend=false
+	@terraform -chdir=platform/terraform/access validate
 	@terraform -chdir=platform/terraform/envs/dev init -backend=false
 	@terraform -chdir=platform/terraform/envs/dev validate
 	@terraform -chdir=platform/terraform/envs/stg init -backend=false
@@ -67,17 +71,32 @@ terraform-bootstrap:
 	@terraform -chdir=platform/terraform/bootstrap init
 	@terraform -chdir=platform/terraform/bootstrap plan
 
+terraform-shared-plan:
+	@bash scripts/render-config.sh
+	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
+	@terraform -chdir=platform/terraform/shared init -backend-config=backend.hcl
+	@terraform -chdir=platform/terraform/shared plan -var="region=$(AWS_REGION)"
+
+terraform-access-plan:
+	@bash scripts/render-config.sh
+	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
+	@test -n "$(BOOTSTRAP_ROLE_ARN)" || (echo "BOOTSTRAP_ROLE_ARN is empty. Configure config/local.env" && exit 1)
+	@terraform -chdir=platform/terraform/access init -backend-config=backend.hcl
+	@terraform -chdir=platform/terraform/access plan -var="region=$(AWS_REGION)" -var="bootstrap_role_arn=$(BOOTSTRAP_ROLE_ARN)"
+
 terraform-dev-plan:
 	@bash scripts/render-config.sh
 	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
+	@test -n "$(BOOTSTRAP_ROLE_ARN)" || (echo "BOOTSTRAP_ROLE_ARN is empty. Configure config/local.env" && exit 1)
 	@terraform -chdir=platform/terraform/envs/dev init -backend-config=backend.hcl
-	@terraform -chdir=platform/terraform/envs/dev plan
+	@terraform -chdir=platform/terraform/envs/dev plan -var="github_bootstrap_role_arn=$(BOOTSTRAP_ROLE_ARN)"
 
 terraform-env-plan:
 	@bash scripts/render-config.sh
 	@test -n "$(AWS_REGION)" || (echo "AWS_REGION is empty. Configure config/global.env" && exit 1)
+	@test -n "$(BOOTSTRAP_ROLE_ARN)" || (echo "BOOTSTRAP_ROLE_ARN is empty. Configure config/local.env" && exit 1)
 	@terraform -chdir=platform/terraform/envs/$(ENV) init -backend-config=backend.hcl
-	@terraform -chdir=platform/terraform/envs/$(ENV) plan
+	@terraform -chdir=platform/terraform/envs/$(ENV) plan -var="github_bootstrap_role_arn=$(BOOTSTRAP_ROLE_ARN)"
 
 helm-lint:
 	@helm lint platform/gitops/helm/charts/openshelter-stack
